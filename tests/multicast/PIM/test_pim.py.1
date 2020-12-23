@@ -949,7 +949,7 @@ def test_pim_func_004(prologue_epilogue):
     #############################################################
 
     for vrf in vrf_list:
-        for _ in range(2):
+        for i in range(2):
             pim_api.clear_mroute(data.dut1,vrf=vrf)
             result = pim_api.verify_ip_mroute(data.dut1,return_output='',vrf=vrf)
             if len(result) == 0:
@@ -1099,7 +1099,6 @@ def test_pim_func_004(prologue_epilogue):
     if int(final_pkt) >= int(initial_pkt) or int(final_pkt_vrf) >= int(initial_pkt_vrf):
         err = "PIM counters did not reset"
         failMsg(err, tech_support, tc_name='pim_004_onfail');
-        #tech_support = False;
         tc_result = False;
         err_list.append(err)
     else:
@@ -1638,7 +1637,6 @@ def test_pim_func_005(prologue_epilogue):
     if result is False:
         err = 'Multicast traffic from S1 to R1 failed for user vrf after pim/igmp disable and enable'
         failMsg(err, tech_support, tc_name='pim_005_onfail');
-        #tech_support = False;
         tc_result=False;err_list.append(err)
     if tc_result is True:
         st.report_tc_pass("FtOpSoRoPimFunc048", "tc_passed")
@@ -1847,7 +1845,6 @@ def test_pim_func_007(prologue_epilogue):
     if result is False:
         err = 'One or more PIM neighbors did not come up'
         failMsg(err, tech_support, tc_name='pim_007_onfail');
-        #tech_support = False;
         tc_result = False;
         err_list.append(err)
 
@@ -2062,12 +2059,12 @@ def test_pim_func_006(pim_func_006_cleanup):
     hdrMsg("Step T14:Remove all static multicast groups on default and user-vrf from R1 connected to LHR1")
     ##################################################################
     st.log("\n Getting initial PRUNE_TX count on LHR1 towards FHR1 \n")
-    get_packet_count(data.dut3,pkt_type='prune_tx',interface=data.d3d1_vlan_intf[0],vrf='default')
-    get_packet_count(data.dut3, pkt_type='prune_tx',interface=data.d3d1_vlan_intf_vrf[0],vrf=vrf_name)
+    initial_prune_tx = get_packet_count(data.dut3,pkt_type='prune_tx',interface=data.d3d1_vlan_intf[0],vrf='default')
+    initial_prune_tx_vrf = get_packet_count(data.dut3, pkt_type='prune_tx',interface=data.d3d1_vlan_intf_vrf[0],vrf=vrf_name)
 
     st.log("\n Getting initial PRUNE_TX count towards FHR2 \n")
-    get_packet_count(data.dut3,pkt_type='prune_tx',interface=data.d3d2_lag_intf_1,vrf='default')
-    get_packet_count(data.dut3, pkt_type='prune_tx', interface=data.d3d2_lag_intf_2,vrf=vrf_name)
+    initial_prune_tx_1 = get_packet_count(data.dut3,pkt_type='prune_tx',interface=data.d3d2_lag_intf_1,vrf='default')
+    initial_prune_tx_vrf_1 = get_packet_count(data.dut3, pkt_type='prune_tx', interface=data.d3d2_lag_intf_2,vrf=vrf_name)
 
     for vrf in vrf_list:
         if vrf != 'default':
@@ -2491,7 +2488,6 @@ def test_pim_func_008(pim_008_fixture):
     if result is False:
         err = 'Mutlicast traffic with jumbo 2000 bytes size dropped'
         failMsg(err, tech_support, tc_name='pim_008_onfail');
-        #tech_support = False;
         tc_result = False;
         err_list.append(err)
 
@@ -2519,11 +2515,9 @@ def config_test_009(config='yes'):
         if vrf == 'default':
             key_append = ''
             dut3_vlan_list = data['d3_vlan_id'][3]
-            #tg_port = data.d3tg_ports[0]
         else:
             key_append = '_vrf'
             dut3_vlan_list = data['d3_vlan_id_vrf'][3]
-            #tg_port = data.d3tg_ports[1]
 
         vlan_int = data['d3tg_vlan_intf' + key_append][0]
 
@@ -2543,7 +2537,6 @@ def config_test_009(config='yes'):
                 vrf_api.bind_vrf_interface(data.dut4,vrf_name = vrf_name,intf_name = vlan_int, skip_error = True,config= config)
 
             ip_api.config_ip_addr_interface(data.dut4,vlan_int,data.d3tg_ip_2,data.mask)
-            #dict2 = {'intf': vlan_int, 'igmp_enable': '', 'config': 'no'}
             parallel.exec_parallel(True, [data.dut4], igmp_api.config_igmp, [dict1])
             pim_api.config_intf_pim(data.dut4, pim_enable = '', intf = vlan_int, config = config)
         else:
@@ -2583,8 +2576,7 @@ def pim_func_009_fixture(request,prologue_epilogue):
 def test_pim_func_009(pim_func_009_fixture):
     #tc_list=['FtOpSoRoPimFunc028','FtOpSoRoPimFunc029','FtOpSoRoPimFunc031','FtOpSoRoPimFunc032']
     err_list =[]
-    #tc_result = True
-    #tech_support = data.tech_support_on_fail
+    tc_result = True
 
     # Learn IGMP groups from port connected to D4 instead of tgen.
     # To simulate max response time expiry - after receiving reports shut port tgen port on D4
@@ -2633,7 +2625,6 @@ def test_pim_func_009(pim_func_009_fixture):
     hdrMsg("Step T3:LHR1: Verify mroute entry gets programmed for all multicast groups with IIF as rpf nexthop interface for Source")
     ##################################################################
     src_list = [data.tgd1_ip]*entry_cnt+[data.tgd2_ip]*entry_cnt+[data.tgd1_ip]*entry_cnt+[data.tgd2_ip]*entry_cnt
-    #iif_list_lhr1 = [data.d3d1_vlan_intf[0]]*entry_cnt+[data.d3d2_lag_intf_1]*entry_cnt+[data.d3d1_vlan_intf_vrf[0]]*entry_cnt+[data.d3d2_lag_intf_2]*entry_cnt
 
     result = pim_api.verify_ip_mroute(data.dut4,source=src_list,group=data.ssm_group_list*4,proto=['IGMP']*4*entry_cnt,
                                       oif=[data.d3tg_vlan_intf[0]]*2*entry_cnt+[data.d3tg_vlan_intf_vrf[0]]*2*entry_cnt,vrf='all')
@@ -2800,7 +2791,7 @@ def test_pim_func_009(pim_func_009_fixture):
         if len(parsed_output1) == 0 :
             err = "show command output is Empty"
             failMsg(err);
-            #tc_result = False;
+            tc_result = False;
             err_list.append(err)
 
         # Workaround for unicode data
@@ -2872,7 +2863,6 @@ def test_pim_func_009(pim_func_009_fixture):
         if len(parsed_output1) == 0 :
             err = "show command output is Empty"
             failMsg(err);
-            #tc_result = False;
             err_list.append(err)
 
         # Workaround for unicode data
@@ -3393,7 +3383,6 @@ def test_pim_func_011(pim_011_fixture):
     ##################################################################
     hdrMsg("Step T23:Verify out of range values are rejected for PIM global commands")
     ##################################################################
-    #err_msg1 = '% Unknown command'
     err_msg = "nown command"
     join_prune = [59,601];keep_alive=[30,60001];pim_pkt=[0,101]
     for val in join_prune:
@@ -3492,7 +3481,6 @@ def test_pim_func_014(prologue_epilogue):
     if ip1 not in output or ip2 not in output or ip4 not in output or pim_pattern not in output:
         err = "Mtrace toward source {} failed via dut2".format(data.tgd1_ip)
         failMsg(err, tech_support, tc_name='pim_014_onfail');
-        #tech_support = False;
         tc_result = False;
         err_list.append(err)
 
@@ -3564,7 +3552,7 @@ def pim_012_fixture(request,prologue_epilogue):
 def test_pim_func_012(pim_012_fixture):
     #tc_list = ['FtOpSoRoPimFunc017']
     err_list = []
-    #tc_result = True
+    tc_result = True
     d3d4_int = data.d3d4_vlan_intf[0]
     d3d4_int_vrf = data.d3d4_vlan_intf_vrf[0]
     hdrMsg("FtOpSoRoPimFunc017 - Verify PIM Assert functionality")
@@ -3580,7 +3568,7 @@ def test_pim_func_012(pim_012_fixture):
         err = 'IGMP group entries not learnt'
         failMsg(err);
         err_list.append(err)
-        #tc_result=False
+        tc_result=False
         st.report_fail('test_case_failure_message',err)
 
     stream_handle1 = [data.stream_handles['{}_{}_{}'.format(group, 'S1', vrf_list[0])] for group in [data.ssm_group_list[0]]]
@@ -3591,7 +3579,7 @@ def test_pim_func_012(pim_012_fixture):
 
     # Workaround for unicode data
     result1 = result2 = False
-    for _ in range(0,10):
+    for i in range(0,10):
         port_api.shutdown(data.dut3, [data.d3d4_ports[0]])
         st.wait(2)
         port_api.noshutdown(data.dut3, [data.d3d4_ports[0]])
@@ -3969,7 +3957,6 @@ def test_pim_func_010(pim_010_fixture):
     if 'Failed to add route' not in result:
         err = 'Mroute command with same OIF and IIF accepted without error'
         failMsg(err, tech_support, tc_name='pim_010_onfail');
-        #tech_support = False;
         err_list.append(err)
         tc_result=False
     else:
@@ -3984,6 +3971,7 @@ def test_pim_scale_001(prologue_epilogue):
     #tc_list=['FtOpSoRoPimFun059','FtOpSoRoPimFunc060','FtOpSoRoPimFunc061','FtOpSoRoPimFunc062','FtOpSoRoPimSc001',
              #'FtOpSoRoPimSc002','FtOpSoRoPimSc003','FtOpSoRoPimSt001','FtOpSoRoPimSt002','FtOpSoRoPimSt003']
 
+
     for dut in [data.dut1,data.dut3]:
         pim_api.clear_mroute(dut)
         pim_api.clear_mroute(dut,vrf=vrf_name)
@@ -3993,7 +3981,6 @@ def test_pim_scale_001(prologue_epilogue):
     for dut in [data.dut1, data.dut3]:
         data.platform_list.append(basic_api.get_hwsku(dut))
 
-    #th1_type = 'Accton-AS7712-32X'
     th3_type = 'Accton-AS9716-32D'
     if th3_type in data.platform_list:
         data.dynamic_scale_count = 508

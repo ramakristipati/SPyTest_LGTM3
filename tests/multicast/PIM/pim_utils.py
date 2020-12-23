@@ -1045,7 +1045,6 @@ def verify_pim_scale():
     result,err = verify_pim_params()
     if result is False:
         failMsg(err, tech_support, tc_name='pim_scale_onfail');
-        tech_support = False;
         err_list.append(err);tc_result=False
         return tc_result,err
     """
@@ -1066,7 +1065,6 @@ def verify_pim_scale():
     if result is False:
         err = 'Max configured {} PIM neighbors not up'.format(data.max_pim_nbrs)
         failMsg(err, tech_support, tc_name='pim_scale_onfail');
-        tech_support = False;
         return tc_result,err
 
     #############################################################
@@ -1100,7 +1098,6 @@ def verify_pim_scale():
         err = 'Max dynamic IGMP groups {} not learnt'.format(data.max_igmp)
         err_list.append(err);tc_result=False;
         failMsg(err, tech_support, tc_name='pim_scale_onfail');
-        tech_support = False;
         return tc_result,err
     #############################################################
     hdrMsg("Step: Verify RPF nexthop is resolved for all Multicast groups on both default and user-vrf")
@@ -1120,7 +1117,6 @@ def verify_pim_scale():
         err = 'RPF nexthops not resolved for all {} groups on default vrf '.format(data.max_igmp/2)
         err_list.append(err);tc_result=False;
         failMsg(err, tech_support, tc_name='pim_scale_onfail');
-        tech_support = False;
         return tc_result,err
 
     result = retry_api(pim_api.grep_total_count, data.dut3, cmd='show ip pim vrf {} rpf'.format(vrf_name), grep='none',
@@ -1129,7 +1125,6 @@ def verify_pim_scale():
         err = 'RPF nexthops not resolved for all {} groups on user vrf '.format(data.max_igmp/2)
         err_list.append(err);tc_result=False;
         failMsg(err, tech_support, tc_name='pim_scale_onfail');
-        tech_support = False;
         return tc_result,err
 
     """
@@ -1163,7 +1158,6 @@ def verify_pim_scale():
         err = 'Max mroutes {} not installed on LHR node '.format(data.max_mroutes)
         err_list.append(err);tc_result=False;
         failMsg(err, tech_support, tc_name='pim_scale_onfail');
-        tech_support = False;
         return tc_result, err
 
     #############################################################
@@ -1176,7 +1170,6 @@ def verify_pim_scale():
         err = 'Multicast Traffic failed on default-vrf with {} mroute entries installed '.format(data.mroute_count_per_vrf)
         err_list.append(err);tc_result=False;
         failMsg(err, tech_support, tc_name='pim_scale_onfail');
-        tech_support = False;
         return tc_result, err
 
     #############################################################
@@ -1188,7 +1181,6 @@ def verify_pim_scale():
         err = 'Multicast Traffic failed on user-vrf with {} mroute entries installed '.format(data.mroute_count_per_vrf)
         err_list.append(err);tc_result=False;
         failMsg(err, tech_support, tc_name='pim_scale_onfail');
-        tech_support = False;
         return tc_result, err
 
     if tc_result is True:

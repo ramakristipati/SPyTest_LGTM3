@@ -20,7 +20,7 @@ from apis.system.connection import connect_to_device, execute_command
 import apis.common.asic_bcm as asicapi
 
 from utilities import parallel
-import utilities.utils as utilsapi
+from utilities.utils import ensure_service_params
 from utilities.common import random_vlan_list, exec_all, make_list
 
 def ospf_initialize_variables():
@@ -597,10 +597,10 @@ def snmp_trap_pre_config():
     :return:
     """
     global capture_file, ip, username, password, path
-    ip = utilsapi.ensure_service_params(vars.D1, "snmptrap", "ip")
-    username = utilsapi.ensure_service_params(vars.D1, "snmptrap", "username")
-    password = utilsapi.ensure_service_params(vars.D1, "snmptrap", "password")
-    path = utilsapi.ensure_service_params(vars.D1, "snmptrap", "path")
+    ip = ensure_service_params(vars.D1, "snmptrap", "ip")
+    username = ensure_service_params(vars.D1, "snmptrap", "username")
+    password = ensure_service_params(vars.D1, "snmptrap", "password")
+    path = ensure_service_params(vars.D1, "snmptrap", "path")
     capture_file = path
     # enable traps on DUT
     snmp_obj.config_snmp_trap(vars.D1, version=2, ip_addr=ip, community= data.ro_community)
@@ -1131,7 +1131,7 @@ def test_ospf_basic_functionality_verify():
     # ################################################
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn003,FtOtSoRtOspfFn009,FtOtSoRtOspfFn012,FtOtSoRtOspfFn028')
+    st.banner('FtOtSoRtOspfFn003,FtOtSoRtOspfFn009,FtOtSoRtOspfFn012,FtOtSoRtOspfFn028')
     result = 0
     result += verify_ospf_sessions(60)
 
@@ -1147,7 +1147,7 @@ def test_ospf_loopback_verify():
     Verify that OSPF can be enabled on loopback interfaces.
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn005')
+    st.banner('FtOtSoRtOspfFn005')
     result = 0
 
     st.banner('Creating loopback interfaces')
@@ -1184,7 +1184,7 @@ def test_ospf_redistribition_verify():
     Verify OSPF router redistribute configurations with default metric in user vrf
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn021,FtOtSoRtOspfFn030')
+    st.banner('FtOtSoRtOspfFn021,FtOtSoRtOspfFn030')
     result = 0
 
     for vrf, ip_addr in zip(['default', data.vrf_name[0]], [data.tg1_ip4_addr_l[1], data.tg1_ip4_addr_l[3]]):
@@ -1240,7 +1240,7 @@ def test_ospf_neighbourship_linkflap_verify():
     Verify OSPF functionality with link flap and interface transmit-delay.
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn042, FtOtSoRtOspfFn027')
+    st.banner('FtOtSoRtOspfFn042, FtOtSoRtOspfFn027')
     result = 0
 
     for vrf, ip_addr in zip(['default', data.vrf_name[0]], [data.tg1_ip4_addr_l[1], data.tg1_ip4_addr_l[3]]):
@@ -1325,7 +1325,7 @@ def test_ospf_redistribition_nondefault_metric_verify():
     Verify OSPF router redistribute configurations with non default metric in user vrf
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn022,FtOtSoRtOspfFn031')
+    st.banner('FtOtSoRtOspfFn022,FtOtSoRtOspfFn031')
     result = 0
     default_vrf_cost_l = ['30','40','50']
     user_vrf_cost_l = ['60','70','80']
@@ -1447,7 +1447,7 @@ def test_ospf_ignore_mtu_verify():
     :return:
     """
 
-    utilsapi.banner_log('FtOtSoRtOspfFn016, FtOtSoRtOspfFn043')
+    st.banner('FtOtSoRtOspfFn016, FtOtSoRtOspfFn043')
     result = 0
 
     poll_wait(ospfapi.verify_ospf_neighbor_state, 60,vars.D1, ospf_links=[vars.D1D2P1, data.vlan_in_1, data.port_channel],
@@ -1595,7 +1595,7 @@ def test_ft_ospf_cleartext_authentication():
     Verify Ospf Clear text Authentication
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn035')
+    st.banner('FtOtSoRtOspfFn035')
     result = 0
 
     st.banner('Configuring Clear Text Authentication')
@@ -1667,7 +1667,7 @@ def test_ft_ospf_md5_authentication():
     Verify that OSPF routers running MD5 authentication will form full adjacency with each other if they are configured with the same Key and KeyID
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn004')
+    st.banner('FtOtSoRtOspfFn004')
     result = 0
 
     st.banner('Configuring  message-digest on interfaces')
@@ -1756,7 +1756,7 @@ def test_ft_ospf_distance():
     Verify that a route with preference set with 255 shall never be used for forwarding
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn017,FtOtSoRtOspfFn020')
+    st.banner('FtOtSoRtOspfFn017,FtOtSoRtOspfFn020')
     result = 0
 
     st.banner('Configuring non-default disatance in ospf')
@@ -1887,7 +1887,7 @@ def test_ospf_passive_interface_verify():
     :return:
     """
 
-    utilsapi.banner_log('FtOtSoRtOspfFn006')
+    st.banner('FtOtSoRtOspfFn006')
     result = 0
 
     poll_wait(ospfapi.verify_ospf_neighbor_state, 60, vars.D1, ospf_links=[vars.D1D2P1, data.vlan_in_1, data.port_channel],
@@ -2087,7 +2087,7 @@ def test_ospf_redistribition_distributionlist_verify():
     Verify OSPF router redistribute configurations with default metric in user vrf
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn023,FtOtSoRtOspfFn032')
+    st.banner('FtOtSoRtOspfFn023,FtOtSoRtOspfFn032')
     result = 0
 
     if st.get_ui_type(cli_type='') in ['klish', "rest-patch", "rest-put"]:
@@ -2216,7 +2216,7 @@ def test_ospf_redistribition_routemap_verify():
     Verify redistribution of various route types with various match and set parameters
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn024')
+    st.banner('FtOtSoRtOspfFn024')
     result = 0
 
     ipapi.create_static_route(vars.D1, data.tg1_ip4_addr_l[0], '192.168.0.0/24')
@@ -2269,7 +2269,7 @@ def test_ospf_hello_dead_interval_verify():
     :return:
     """
 
-    utilsapi.banner_log('FtOtSoRtOspfFn029')
+    st.banner('FtOtSoRtOspfFn029')
     result = 0
 
     st.banner("Configuring non deafult hello interval on interface for non default VRF on {} and default VRF on {}".format(vars.D1, vars.D2), 130)
@@ -2342,7 +2342,7 @@ def test_ospf_vrf_movement():
     """
     Verify that new OSPF neighborship comes-up fine when an OSPF interface is moved to a different VR
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn033')
+    st.banner('FtOtSoRtOspfFn033')
     result = 0
 
     if not poll_wait(ospfapi.verify_ospf_neighbor_state, 5, vars.D1, ospf_links=[vars.D1D2P5], states=['Full'], vrf=data.vrf_name[0], addr_family='ipv4', poll_delay=1):
@@ -2434,7 +2434,7 @@ def test_ospf_reference_bandwidth():
     """
     Verify OSPF reference bandwidth
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn034')
+    st.banner('FtOtSoRtOspfFn034')
     result = 0
     st.banner('Configure the referense b/w')
     dict1 = {'vrf': 'default', 'bandwidth': '10000', 'config': 'yes'}
@@ -2631,7 +2631,7 @@ def test_ospf_intra_inter_area_route_calculations():
     Verify that the OSPF functionality after clear ip ospf configuration
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn039,FtOtSoRtOspfFn40,FtOtSoRtOspfFn044')
+    st.banner('FtOtSoRtOspfFn039,FtOtSoRtOspfFn40,FtOtSoRtOspfFn044')
     result = 0
 
     st.banner('Unconfigure inter area ospf and configure intra area ospf config')
@@ -2825,7 +2825,7 @@ def test_ospf_stub_functionality():
     Verify that in case of loss of backbone area, DUT is still stable, and OSPF LSA database is correct
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn07,FtOtSoRtOspfFn08,FtOtSoRtOspfFn041,FtOtSoRtOspfFn011,FtOtSoRtOspfFn014')
+    st.banner('FtOtSoRtOspfFn07,FtOtSoRtOspfFn08,FtOtSoRtOspfFn041,FtOtSoRtOspfFn011,FtOtSoRtOspfFn014')
     result = 0
     ospf_metric_l = ['10', '40', '20']
 
@@ -3068,7 +3068,7 @@ def test_ospf_max_intra_ext_routes_verify():
     Verify that the IPv4 traffic is forwarded based on the maximum routes advertised by the OSPF protocol
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn046')
+    st.banner('FtOtSoRtOspfFn046')
     result = 0
     for route_type in ['intra', 'ext']:
         params = {
@@ -3170,7 +3170,7 @@ def test_ft_ospf_rfc1538compatibility():
     Verify that OSPF routers running MD5 authentication will form full adjacency with each other if they are configured with the same Key and KeyID
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn015')
+    st.banner('FtOtSoRtOspfFn015')
     result = 0
 
     parallel.exec_parallel(True, [vars.D1, vars.D2], ospfapi.config_interface_ip_ospf_authentication,
@@ -3232,7 +3232,7 @@ def test_ospf_inter_area_summarization():
     Verify inter-area route summarization
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn037')
+    st.banner('FtOtSoRtOspfFn037')
     result = 0
     prefix_network = ['111.1.1.0/24', '111.1.11.0/24', '111.1.21.0/24']
     cost_on_tg = ['10', '20', '30']
@@ -3376,7 +3376,7 @@ def test_ospf_bfd_session_flap_verify():
     :return:
     """
 
-    utilsapi.banner_log('FtOtSoRtOspfFn025')
+    st.banner('FtOtSoRtOspfFn025')
     result = 0
     poll_wait(ospfapi.verify_ospf_neighbor_state, 40, vars.D1, ospf_links=[vars.D1D2P5, data.vlan_in_2], states=['Full'], vrf=data.vrf_name[0],
                                        addr_family='ipv4')
@@ -3449,7 +3449,7 @@ def test_ospf_max_lsdb_overflow_test():
     Verify the DUT behavior with route table maxed out with OSPF routes & local/Static routes
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn018')
+    st.banner('FtOtSoRtOspfFn018')
     result = 0
     intfapi.interface_operation(vars.D2, [vars.D2D1P2, vars.D2D1P3, vars.D2D1P4], operation="shutdown", skip_verify=True)
     st.log('Displaying the OSPF route summary')
@@ -3598,7 +3598,7 @@ def test_ospf_traffic_verify():
     :return:
     """
     result = 1
-    utilsapi.banner_log('FtOtSoRtOspfFn010, FtOtSoRtOspfFn050')
+    st.banner('FtOtSoRtOspfFn010, FtOtSoRtOspfFn050')
 
     st.banner('sending routes from TG1 for verification')
     tg1.tg_emulation_ospf_control(mode='stop', handle=ospf_rtr1['handle'])
@@ -3686,7 +3686,7 @@ def test_ospf_import_export_list():
     :return:
     """
     result = 1
-    utilsapi.banner_log('FtOtSoRtOspfFn013')
+    st.banner('FtOtSoRtOspfFn013')
 
     if st.get_ui_type(cli_type='') in ['klish', "rest-patch", "rest-put"]:
         st.report_unsupported('test_case_unsupported', 'KLISH CLI commands not supported')
@@ -3801,7 +3801,7 @@ def test_ospf_dr_bdr_election():
     DR/BDR Election
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn002')
+    st.banner('FtOtSoRtOspfFn002')
     result = 0
 
     state_d1 = ospfapi.fetch_ospf_interface_info(vars.D1, vars.D1D2P1, 'nbrstate', 'default')
@@ -3861,7 +3861,7 @@ def test_ospf_retransmit_interval_verify():
     :return:
     """
 
-    utilsapi.banner_log('FtOtSoRtOspfFn036')
+    st.banner('FtOtSoRtOspfFn036')
     result = 0
     if not poll_wait(ospfapi.verify_ospf_neighbor_state, 60, vars.D1, ospf_links=[vars.D1D2P5, data.vlan_in_2],
               states=['Full'], vrf=data.vrf_name[0], addr_family='ipv4'):
@@ -4016,7 +4016,7 @@ def test_ospf_routerid_change():
     Verify OSPF router Id selection
     :return:
     """
-    utilsapi.banner_log('FtOtSoRtOspfFn001')
+    st.banner('FtOtSoRtOspfFn001')
 
     if not poll_wait(ospfapi.verify_ospf_neighbor_state, 60, vars.D1, ospf_links=[vars.D1D2P5, data.vlan_in_2],
               states=['Full'], vrf=data.vrf_name[0], addr_family='ipv4'):
@@ -4106,7 +4106,7 @@ def test_ospf_max_metric_router_lsa_verify():
     :return:
     """
 
-    utilsapi.banner_log('FtOtSoRtOspfFn026')
+    st.banner('FtOtSoRtOspfFn026')
     res = 0
     if not poll_wait(ospfapi.verify_ospf_neighbor_state, 20, vars.D1, ospf_links=[vars.D1D2P5, data.vlan_in_2],
               states=['Full'], vrf=data.vrf_name[0], addr_family='ipv4'):

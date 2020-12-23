@@ -180,7 +180,7 @@ data.static_mroute = 2
 data.max_pim_nbrs = 64
 data.max_mroutes= data.dynamic_scale_count + data.static_igmp + data.static_mroute
 data.max_igmp = data.dynamic_scale_count + data.static_mroute
-data.mroute_count_per_vrf = data.max_mroutes/2
+data.mroute_count_per_vrf = int(data.max_mroutes/2)
 data.static_mroute_vrf = 1
 # Non default params
 data.hello_interval = 20
