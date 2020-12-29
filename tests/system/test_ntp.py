@@ -46,7 +46,7 @@ def config_ntp_server_on_config_db_file(dut, iplist):
     else:
         st.log("ntpd is exited and restarting ntp service")
         basic_obj.service_operations(vars.D1, data.ntp_service, action="restart")
-    if not st.poll_wait(ntp_obj.verify_ntp_server_details, 10, dut, iplist, remote=iplist):
+    if not st.poll_wait(ntp_obj.verify_ntp_server_details, 30, dut, iplist, remote=iplist):
         st.log("ip not matching")
         st.report_fail("operation_failed")
     if not ntp_obj.verify_ntp_service_status(dut, 'active (running)', iteration=65, delay=2):

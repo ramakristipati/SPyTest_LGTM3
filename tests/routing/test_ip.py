@@ -40,6 +40,8 @@ data.port_channel = "PortChannel100"
 data.tg_mac1 = "00:00:00:EA:23:0F"
 data.tg_mac2 = "00:00:11:0A:45:33"
 data.rate_pps = 2000
+data.pkts_per_burst = 2000
+data.num_routes = 30000
 data.static_ip6_rt_drop = "blackhole"
 data.static_ip6_rt = "6661::/64"
 data.static_ip_rt = "192.168.5.0/24"
@@ -62,8 +64,11 @@ data_tg_ip="10.10.10.1"
 @pytest.fixture(scope="module", autouse=True)
 def ip_module_hooks(request):
     global vars, tg_handler, tg
+    if st.is_soft_tgen():
+        data.rate_pps = 100
+        data.pkts_per_burst = 100
+        data.num_routes = 1500
     # Min topology verification
-    st.log("Ensuring minimum topology")
     vars = st.ensure_min_topology("D1T1:2", "D2T1:2", "D1D2:4")
     # Initialize TG and TG port handlers
     tg_handler = tgapi.get_handles_byname("T1D1P1", "T1D1P2", "T1D2P1", "T1D2P2")
@@ -198,8 +203,8 @@ def create_v4_route(route_count):
     st.wait(10)
     # Verified at neighbor.
     tr1 = tg.tg_traffic_config(port_handle=tg_handler["tg_ph_1"], mode='create', transmit_mode='single_burst',
-                               pkts_per_burst=2000, \
-                               length_mode='fixed', rate_pps=2000, l3_protocol='ipv4', mac_src=data.tg_mac1, \
+                               pkts_per_burst=data.pkts_per_burst, \
+                               length_mode='fixed', rate_pps=data.rate_pps, l3_protocol='ipv4', mac_src=data.tg_mac1, \
                                mac_dst=dut_rt_int_mac1, ip_src_addr=data.ip4_addr[0],
                                ip_dst_addr=data.ip4_addr[9])
     st.log("TRAFCONF: " + str(tr1))
@@ -229,7 +234,7 @@ def test_l3_v4_route_po_1():
     asicapi.dump_l2(dut)
     asicapi.dump_trunk(dut)
 
-    ret = create_v4_route(30000)
+    ret = create_v4_route(data.num_routes)
     if (ret):
         st.report_pass("test_case_passed")
     else:
@@ -279,8 +284,8 @@ def create_v6_route(route_count):
     # Configuring the BGP router.
     st.log("BGP neighborship established.")
     tr1 = tg.tg_traffic_config(port_handle=tg_handler["tg_ph_1"], mode='create', transmit_mode='single_burst',
-                               pkts_per_burst=2000, \
-                               length_mode='fixed', rate_pps=2000, l3_protocol='ipv6', mac_src=data.tg_mac1, \
+                               pkts_per_burst=data.pkts_per_burst, \
+                               length_mode='fixed', rate_pps=data.rate_pps, l3_protocol='ipv6', mac_src=data.tg_mac1, \
                                mac_dst=dut_rt_int_mac1, ipv6_src_addr=data.ip6_addr[0],
                                ipv6_dst_addr=data.ip6_addr[9])
     st.log("TRAFCONF: " + str(tr1))
@@ -311,7 +316,7 @@ def test_l3_v6_route_po_1():
     asicapi.dump_l2(dut)
     asicapi.dump_trunk(dut)
 
-    ret = create_v6_route(30000)
+    ret = create_v6_route(data.num_routes)
     if (ret):
         st.report_pass("test_case_passed")
     else:
@@ -396,8 +401,8 @@ def test_ft_ip6_static_route_traffic_forward_blackhole():
         st.warn("Ping failed.")
 
     tr1 = tg.tg_traffic_config(port_handle=tg_handler["tg_ph_1"], mode='create', transmit_mode='single_burst',
-                               pkts_per_burst=2000, \
-                               length_mode='fixed', rate_pps=2000, l3_protocol='ipv6', mac_src=data.tg_mac1, \
+                               pkts_per_burst=data.pkts_per_burst, \
+                               length_mode='fixed', rate_pps=data.rate_pps, l3_protocol='ipv6', mac_src=data.tg_mac1, \
                                mac_dst=dut_rt_int_mac1, ipv6_src_addr=data.ip6_addr[0],
                                ipv6_dst_addr=data.ip6_addr[9])
     st.log("TRAFCONF: " + str(tr1))
@@ -470,8 +475,8 @@ def test_ft_ip_static_route_traffic_forward():
     else:
         st.warn("Ping failed.")
     tr1 = tg.tg_traffic_config(port_handle=tg_handler["tg_ph_1"], mode='create', transmit_mode='single_burst',
-                               pkts_per_burst=2000, \
-                               length_mode='fixed', rate_pps=2000, l3_protocol='ipv4', mac_src=data.tg_mac1, \
+                               pkts_per_burst=data.pkts_per_burst, \
+                               length_mode='fixed', rate_pps=data.rate_pps, l3_protocol='ipv4', mac_src=data.tg_mac1, \
                                mac_dst=dut_rt_int_mac1, ip_src_addr=data.ip4_addr[0],
                                ip_dst_addr=data.ip4_addr[9])
     st.log("TRAFCONF: " + str(tr1))
@@ -528,9 +533,9 @@ def test_ft_ip_v4_v6_L2_L3_translation():
     tg.tg_traffic_control(action="reset", port_handle=tg_handler["tg_ph_list"])
     tg.tg_traffic_control(action="clear_stats", port_handle=tg_handler["tg_ph_list"])
 
-    tr2 = tg.tg_traffic_config(port_handle=tg_handler["tg_ph_2"], mode='create', rate_pps="2000",
+    tr2 = tg.tg_traffic_config(port_handle=tg_handler["tg_ph_2"], mode='create', rate_pps=data.rate_pps,
                            mac_src_mode="fixed",
-                           transmit_mode="single_burst", pkts_per_burst=2000,
+                           transmit_mode="single_burst", pkts_per_burst=data.pkts_per_burst,
                            length_mode='fixed', l2_encap='ethernet_ii_vlan',
                            vlan_id=data.vlan_2, mac_dst_mode="fixed",
                            vlan="enable",

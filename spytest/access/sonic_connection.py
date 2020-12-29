@@ -156,8 +156,9 @@ class SonicBaseConnection(CiscoBaseConnection):
         retype_expect = self.prompt_terminator
         if output is None:
             retype_expect = r"passwd: password updated successfully\s*"
+            prompt_terminator = r"Enter new UNIX password:|New password:"
             output = self.send_command("sudo passwd {}".format(username),
-                                       expect_string="Enter new UNIX password:",
+                                       expect_string=prompt_terminator,
                                        strip_command=False, strip_prompt=False)
         trace("========= change_password_1: {} =========".format(output))
         if "Enter new UNIX password:" in output:
@@ -168,6 +169,16 @@ class SonicBaseConnection(CiscoBaseConnection):
             output += self.send_command(new_password, expect_string=retype_expect,
                                         strip_command=False, strip_prompt=False)
             trace("========= change_password_3: {} =========".format(output))
+            return [True, output]
+        trace("========= change_password_4: {} =========".format(output))
+        if "New password:" in output:
+            output += self.send_command(new_password, expect_string="Retype new password:",
+                                        strip_command=False, strip_prompt=False)
+        trace("========= change_password_5: {} =========".format(output))
+        if "Retype new password:" in output:
+            output += self.send_command(new_password, expect_string=retype_expect,
+                                        strip_command=False, strip_prompt=False)
+            trace("========= change_password_6: {} =========".format(output))
             return [True, output]
         return [False, output]
 

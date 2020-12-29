@@ -9,14 +9,18 @@ from spytest import st, tgapi, SpyTestDict
 import apis.system.reboot as reboot_obj
 from apis.system.switch_configuration import get_running_config
 from apis.system.logging import show_logging
-from apis.system.interface import show_queue_counters, interface_status_show, clear_interface_counters, show_interface_counters_all, interface_operation, poll_for_interface_status
+from apis.system.interface import show_queue_counters
+from apis.system.interface import interface_status_show
+from apis.system.interface import clear_interface_counters
+from apis.system.interface import show_interface_counters_all
+from apis.system.interface import interface_operation
+from apis.system.interface import poll_for_interface_status
 from apis.switching.mac import config_mac_agetime, config_mac, get_mac_agetime
 from apis.switching.vlan import create_vlan_and_add_members, clear_vlan_configuration
 import tests.qos.qos_shaper_json_config as data
 import apis.qos.qos_shaper as shaper
 from apis.qos.qos import clear_qos_config
 import apis.common.asic as asicapi
-import apis.common.asic_bcm as asic_bcm
 
 from utilities.common import random_vlan_list, filter_and_select, poll_wait, iterable
 
@@ -32,7 +36,7 @@ def scheduler_shaper_module_hooks(request):
     port_speed = filter_and_select(interface_status_show(vars.D1, interfaces=vars.D1T1P3), ['speed'], {'interface': vars.D1T1P3})[0]['speed']
     shaping_data = data.init_vars(vars, port_speed.replace('G', '000'))
     port_shaping_module_prolog()
-    port_shaping_data.pmap_details = asic_bcm.get_interface_pmap_details(vars.D1, interface_name=[vars.D1T1P1, vars.D1T1P2, vars.D1T1P3, vars.D1T1P4])
+    port_shaping_data.pmap_details = asicapi.get_intf_pmap(vars.D1, interface_name=[vars.D1T1P1, vars.D1T1P2, vars.D1T1P3, vars.D1T1P4])
     if not port_shaping_data.pmap_details:
         st.debug("PMAP details are: {}".format(port_shaping_data.pmap_details))
         st.report_fail('no_data_found')

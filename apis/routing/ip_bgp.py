@@ -109,7 +109,7 @@ def verify_bgp_neighbor(dut,**kwargs):
             #Iterate through the user parameters
             for k in kwargs.keys():
                 if k != 'neighborip':
-                    if output[nbr_index][k] == kwargs[k][i]:
+                    if output[nbr_index][k] == kwargs[k][i] or output[nbr_index][k] == kwargs[k][i].upper():
                         st.log('Match Found for %s :: Expected: %s  Actual : %s'%(k,kwargs[k][i],output[nbr_index][k]))
                         result=True
                     else:

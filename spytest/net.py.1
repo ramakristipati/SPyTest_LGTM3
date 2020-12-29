@@ -3006,72 +3006,25 @@ class Net(object):
 
         devname = self._check_devname(devname)
         access = self._get_dev_access(devname)
-
-        flag_fast_warm_reboot = 0
-        if method in ["normal", "reboot"]:
-            reboot_cmd = "sudo reboot"
-        elif method in ["fast", "fast-reboot"]:
-            reboot_cmd = "sudo fast-reboot"
-            flag_fast_warm_reboot = 1
-        elif method in ["warm", "warm-reboot"]:
-            reboot_cmd = "sudo warm-reboot"
-            flag_fast_warm_reboot = 1
-        else:
-            reboot_cmd = "sudo reboot"
-
         if access["filemode"]:
-            self.dut_log(devname, "Reboot command '{}'.".format(reboot_cmd))
             return True
 
-        # ensure we are in sonic mode
-        self._enter_linux_exit_vtysh(devname)
-
-        # just incase if we are in SSH mode
-        self._switch_connection(devname, 0)
-        # just incase if we are in SSH mode
-
         user_mode = self._get_cli_prompt(devname)
-
-        # check if the reboot needs confirmation and handle accordingly
-        output = self._send_command(access, "fast-reboot -h", user_mode,
-                                    skip_error_check=True)
-        if "skip the user confirmation" in output:
-            reboot_cmd = "{} -y".format(reboot_cmd)
-
-        # negative test for API
-        if method in ["fast-reboot-fail"]:
-            flag_fast_warm_reboot = 1
-            reboot_cmd = "echo sudo fast-reboot"
 
         # Issue reboot command.
         self.wa.instrument(devname, "pre-reboot")
         self.trace_callback_set(devname, True)
-        reboot_delay_factor = 10
-        cmd_timetaken = None
         if not self._is_console_connection(devname):
-            reboot_static_wait = 120
-            if onie:
-                reboot_static_wait = 600
+            reboot_static_wait = 600 if onie else 120
             ssh_patterns = r"(systemctl daemon-reload|requested COLD shutdown|[#|\$]\s*$)"
+            reboot_cmd = "sudo reboot"
             output = self._send_command(access, reboot_cmd, ssh_patterns, True, 1)
             msg = "Waiting for '{}' secs after reboot on SSH.".format(reboot_static_wait)
             self.dut_log(devname, msg)
             self.wait(reboot_static_wait)
             if not onie:
-                reboot_polling_time = 120
-                time_left = reboot_polling_time
                 dut_mgmt_ip = str(access["connection_param"]["ip"])
-                while time_left > 0:
-                    retval = utils.ipcheck(dut_mgmt_ip)
-                    msg = "Pinging IP : '{}' : {}".format(dut_mgmt_ip, retval)
-                    self.dut_log(devname, msg)
-                    if retval:
-                        break
-                    time_left = time_left - 2
-                if time_left == 0:
-                    msg = "DUT IP '{}' is not reachable even after pinging for '{}' secs after reboot on SSH"
-                    msg = msg.format(dut_mgmt_ip, reboot_polling_time)
-                    self.dut_log(devname, msg, logging.ERROR)
+                if not self._wait_mgmt(devname, dut_mgmt_ip, 120):
                     return False
             self._disconnect_device(devname)
             wait_after_ping = 30
@@ -3088,20 +3041,13 @@ class Net(object):
                 retry_count = retry_count + 1
                 self.wait(10)
         elif onie:
-            self._send_command(access, reboot_cmd, regex_onie_resque, True, reboot_delay_factor)
+            reboot_cmd = "sudo reboot"
+            self._send_command(access, reboot_cmd, regex_onie_resque, True, 10)
+            self.trace_callback_set(devname, False)
             return True
         else:
             if internal:
-                expect = "|".join([user_mode, regex_login, regex_login_anywhere])
-                cmd_starttime = get_timenow()
-                output = self._send_command(access, reboot_cmd, expect, True, reboot_delay_factor)
-                cmd_timetaken = get_elapsed(cmd_starttime, False)
-                if cmd_timetaken < 100:
-                    msg = "Not expecting the command to finish in '{}' secs."
-                    msg = msg.format(cmd_timetaken)
-                    msg = msg + " So waiting for a static period of 10 mins."
-                    self.dut_log(devname, msg, lvl=logging.WARNING)
-                    self.wait(600)
+                output = self.wa.hooks.dut_reboot(devname, method=method, reboot_wait=600, cli_type="click")
             else:
                 output = self.wa.hooks.dut_reboot(devname, method=method)
         self.trace_callback_set(devname, False)
@@ -3126,7 +3072,7 @@ class Net(object):
             prompt = self._find_prompt(access)
             prompt2 = prompt.replace("\\", "")
             if re.compile(regex_login).match(prompt2):
-                msg = "Device Reboot ({}) Completed.".format(reboot_cmd)
+                msg = "Device Reboot Completed."
                 self.dut_log(devname, msg)
                 self.wait(5) # wait for any kernel messages to show up
                 self._enter_linux(devname, prompt)
@@ -3135,21 +3081,21 @@ class Net(object):
                 break
 
             if re.compile(regex_login_anywhere).match(prompt2):
-                msg = "Device Reboot ({}) May Be Completed - confirming".format(reboot_cmd)
+                msg = "Device Reboot May Be Completed - confirming"
                 self.dut_log(devname, msg)
                 continue
 
             if prompt == user_mode:
                 if not self._is_console_connection(devname):
-                    msg = "Device Reboot ({}) Completed..".format(reboot_cmd)
+                    msg = "Device Reboot Completed.."
                     self.dut_log(devname, msg)
                     reboot_status = self.do_post_reboot(devname, max_ready_wait=max_ready_wait)
                     if internal: reboot_status = True
                     break
-                msg = "Device Reboot ({}) Failed.".format(reboot_cmd)
+                msg = "Device Reboot Failed."
                 self.dut_log(devname, msg, logging.ERROR)
-                if flag_fast_warm_reboot and not skip_fallback:
-                    msg = "Performing normal Reboot as ({}) failed.".format(reboot_cmd)
+                if method == "normal" and not skip_fallback:
+                    msg = "Performing normal Reboot as ({}) failed.".format(method)
                     self.dut_log(devname, msg)
                     self.reboot(devname, skip_exception=True)
                     result_set = ["DUTFail", "fast_or_warm_reboot_failed"]
@@ -3163,7 +3109,7 @@ class Net(object):
             try_count = try_count - 1
 
         if not reboot_status:
-            self._report_error(result_set, reboot_cmd)
+            self._report_error(result_set, "")
         elif self.cfg.reboot_wait:
             msg = "Waiting for '{}' secs after reboot.".format(self.cfg.reboot_wait)
             self.dut_log(devname, msg)
@@ -4300,23 +4246,13 @@ class Net(object):
 
         for _ in range(0,3):
             delay_factor = 3 # so that --faster-cli is not used
-            prompt_terminator = r"Enter new UNIX password:\s*$|New password:\s*$|{}\s*$".format(cli_prompt)
+            prompt_terminator = r"Enter new UNIX password:\s*$|{}\s*$".format(cli_prompt)
             output = self._send_command(access, "sudo passwd {}".format(username), prompt_terminator, delay_factor=delay_factor)
             self.logger.debug("OUTPUT: {}".format(output))
             if re.search("Enter new UNIX password:", output):
                 output = self._send_command(access, password, r"Retype new UNIX password:\s*$", delay_factor=delay_factor)
                 self.logger.debug("OUTPUT: {}".format(output))
                 if re.search(".*NIX password:", output):
-                    output = self._send_command(access, password, cli_prompt, delay_factor=delay_factor)
-                    self.logger.debug("OUTPUT: {}".format(output))
-                    if not re.search("password updated successfully", output):
-                        err_flag = 1
-                else:
-                    err_flag = 1
-            if re.search("New password:", output):
-                output = self._send_command(access, password, r"Retype new password:\s*$", delay_factor=delay_factor)
-                self.logger.debug("OUTPUT: {}".format(output))
-                if re.search(".*assword:", output):
                     output = self._send_command(access, password, cli_prompt, delay_factor=delay_factor)
                     self.logger.debug("OUTPUT: {}".format(output))
                     if not re.search("password updated successfully", output):

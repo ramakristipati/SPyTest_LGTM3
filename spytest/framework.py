@@ -4,11 +4,10 @@ import sys
 import pdb
 import time
 import glob
-import argparse
 from inspect import currentframe
 from collections import OrderedDict
 from operator import itemgetter
-from random import Random
+import random
 import traceback
 import threading
 import textwrap
@@ -91,6 +90,9 @@ report_total_col = "====TOTAL===="
 exec_phases=['always', 'onfail', "none", "onerror", "session", \
              "onfail-epilog", "module-always", "module-onfail", "module-onerror"]
 
+ui_types = ['click', 'klish', 'click-fallback', 'klish-fallback', 'rest-put', 'rest-patch', 'random']
+random_ui_types = ['click', 'klish', 'rest-patch']
+
 mail_build = "UNKNOWN Build"
 def set_mail_build(val):
     global mail_build
@@ -139,7 +141,7 @@ def create_pid_file():
     utils.write_file(pid_file, "{}".format(os.getpid()))
 
 def build_module_logname(nodeid):
-    if env.get("SPYTEST_REPEAT_MODULE_SUPPORT", "0") == "0":
+    if env.get("SPYTEST_REPEAT_MODULE_SUPPORT") == "0":
         return paths.get_mlog_name(nodeid)
     try:
         cur_test = env.get("PYTEST_CURRENT_TEST", "").split(" ")[0]
@@ -223,7 +225,7 @@ class Context(object):
         self.session_start_time = get_timenow()
         self.session_init_time_taken = None
         self.total_tc_start_time = None
-        for name, value in cfg.env:
+        for name, value in cfg.env.items():
             self.log.warning("setting environment {} = {}".format(name, value))
             os.environ[name] = value
 
@@ -305,6 +307,8 @@ class Context(object):
         Result.write_report_csv(stats_csv, [], ReportType.STATS, is_batch=False)
         sysinfo_csv = paths.get_sysinfo_csv(self.logs_path)
         Result.write_report_csv(sysinfo_csv, [], ReportType.SYSINFO, is_batch=False)
+        coverage_csv = paths.get_coverage_csv(self.logs_path)
+        Result.write_report_csv(coverage_csv, [], ReportType.COVERAGE, is_batch=False)
         utils.delete_file(paths.get_stats_txt(self.logs_path))
         utils.delete_file(os.path.join(self.logs_path, "node_dead"))
 
@@ -470,7 +474,7 @@ class Context(object):
                                 self.cfg.ui_type, self.execution_start_time, get_timenow())
         utils.write_file(filepath, build_info)
 
-        if not self.cfg.email_csv:
+        if not self.cfg.email_csv or env.get("SPYTEST_EMAIL_SUPPORT", "1") == "0":
             return
 
         is_master, is_html, add_png = batch.is_master(), True, False
@@ -580,9 +584,11 @@ class Context(object):
         fcli = self.net.get_fcli()
         tryssh = self.net.get_tryssh()
         dut_list = self._tb.get_device_names("DUT")
+        models = self._tb.get_device_models("DUT")
+        chips = self._tb.get_device_chips("DUT")
         res = self.result.publish(nodeid, func, tcid, time_taken, comp,
                                   result, desc, rtype, syslogs,
-                                  fcli, tryssh, dut_list)
+                                  fcli, tryssh, dut_list, models, chips)
         if not comp and func:
             selected_test_results[func] = res["Result"]
             self.all_tc_executed = self.all_tc_executed + 1
@@ -652,6 +658,7 @@ class WorkArea(object):
         self.app_vars = dict()
         self.cli_type_cache = OrderedDict()
         self.module_vars = dict()
+        self.dut_ui_type = dict()
         self._context = None
         self.file_prefix = None
         self.chat = None
@@ -752,8 +759,8 @@ class WorkArea(object):
             return os.path.join(logs_path, file_path)
         return logs_path
 
-    def profiling_start(self, msg, max_time):
-        return self.net.profiling_start(msg, max_time)
+    def profiling_start(self, msg, max_time, skip_report=False):
+        return self.net.profiling_start(msg, max_time, skip_report)
 
     def profiling_stop(self, pid):
         return self.net.profiling_stop(pid)
@@ -1901,6 +1908,7 @@ class WorkArea(object):
             self.log("successfully to apply base configuration: {}".format(self.abort_module_msg))
 
     def _module_init_cli_cache(self):
+        self.dut_ui_type.clear()
         self.module_sysinfo.clear()
         self.cli_records.clear()
         self.cli_type_cache.clear()
@@ -2185,6 +2193,21 @@ class WorkArea(object):
         sysinfo_csv = paths.get_sysinfo_csv(self._context.logs_path)
         Result.write_report_csv(sysinfo_csv, [row], ReportType.SYSINFO, False, True)
 
+    def _module_save_coverage(self):
+        mname = paths.get_mlog_basename(current_module.name)
+        row = [len(self.modules_completed)]     # s.no
+        row.append(mname)                       # module name
+        dut_list = self._context._tb.get_device_names("DUT")
+        models = self._context._tb.get_device_models("DUT")
+        chips = self._context._tb.get_device_chips("DUT")
+        tgens = self._context._tb.get_tgen_types()
+        row.append(", ".join(dut_list))
+        row.append(", ".join(models))
+        row.append(", ".join(chips))
+        row.append(", ".join(tgens))
+        coverage_csv = paths.get_coverage_csv(self._context.logs_path)
+        Result.write_report_csv(coverage_csv, [row], ReportType.COVERAGE, False, True)
+
     def _module_clean(self, nodeid, filepath):
         if not self.min_topo_called:
             self.error("Module {} Minimum Topology is not specified".format(filepath))
@@ -2201,6 +2224,7 @@ class WorkArea(object):
         if not batch.is_infra_test(filepath):
             self._post_module_cleanup(filepath)
             self._module_save_sysinfo()
+            self._module_save_coverage()
 
         # update the node report files for every module
         # if we are not reporting run progress
@@ -2866,6 +2890,23 @@ class WorkArea(object):
         """
         pass
 
+    def _process_testbed_properties(self, tbvars, properties):
+        if not properties: return
+        if None in properties and "CONSOLE_ONLY" in properties[None]:
+            self.net.set_console_only(True)
+        for dut in tbvars.dut_list:
+            did = tbvars.dut_ids[dut]
+            ui_type = None
+            if did in properties and "UI" in properties[did]:
+                ui_type = properties[did]["UI"]
+            elif None in properties and "UI" in properties[None]:
+                ui_type = properties[None]["UI"]
+            if ui_type:
+                if ui_type in ui_types:
+                    self.dut_ui_type[dut] = ui_type
+                else:
+                    self.error("Invalid UI Type {}".format(ui_type))
+
     def ensure_min_topology(self, *args, **kwargs):
         """
         verifies if the current testbed topology satifies the
@@ -2882,14 +2923,13 @@ class WorkArea(object):
 
         [errs, properties] = self._context._tb.ensure_min_topology(*args)
         if not errs:
-            if properties and None in properties:
-                if "CONSOLE_ONLY" in properties[None]:
-                    self.net.set_console_only(True)
             topo_1 = self._context._tb.get_topo(True)
             topo_2 = self._context._tb.get_topo(False)
             self.log("Assigned topology: {}".format(topo_1))
             self.log("Assigned devices: {}".format(topo_2))
-            return self.get_testbed_vars(native)
+            tbvars = self.get_testbed_vars(native)
+            self._process_testbed_properties(tbvars, properties)
+            return tbvars
 
         self.report_topo_fail("min_topology_fail", errs)
 
@@ -3046,7 +3086,18 @@ class WorkArea(object):
         dut = utils.make_list(dut)[0]
         cli_type = kwargs.get('cli_type', '')
         if cli_type: cli_type = cli_type.strip()
-        if not cli_type: cli_type = ui_type
+        if not cli_type:
+            dut_ui_type = self.dut_ui_type.get(dut, '')
+            if not dut_ui_type:
+                if ui_type != "random":
+                    cli_type = ui_type
+                else:
+                    cli_type = random.choice(random_ui_types)
+            else:
+                cli_type = dut_ui_type
+                msg = "CLI-TYPE Forced to {} From Topology".format(cli_type)
+                if dut: self.dut_log(dut, msg, logging.DEBUG)
+                else: self.debug(msg)
         elif cli_type != ui_type:
             msg = "CLI-TYPE Forced to {} From caller".format(cli_type)
             if dut: self.dut_log(dut, msg, logging.DEBUG)
@@ -3366,36 +3417,6 @@ class WorkArea(object):
         dir = dir or _get_logs_path()[1]
         return tempfile.mkstemp(dir=dir)[1]
 
-
-def arg_validate_repeat():
-    class ArgValidateRepeat(argparse.Action):
-        def __call__(self, parser, namespace, values, option_string=None):
-            message = ''
-            types_supported = ["function", "module"]
-            if len(values) != 2:
-                message = "requires both <type> and <times>"
-            elif values[0] not in types_supported:
-                message = "<type> should be one of {}".format(types_supported)
-            else:
-                try:
-                    values[1] = int(values[1])
-                except ValueError:
-                    message = "<times> should be integer"
-            if message:
-                raise argparse.ArgumentError(self, message)
-            setattr(namespace, self.dest, values)
-    return ArgValidateRepeat
-
-def arg_validate_exec_phase():
-    class ArgValidateExecPhase(argparse.Action):
-        def __call__(self, parser, namespace, values, option_string=None):
-            for value in values.split(","):
-                if value not in exec_phases:
-                    message = "unknown sub-option {}".format(value)
-                    raise argparse.ArgumentError(self, message)
-            setattr(namespace, self.dest, values)
-    return ArgValidateExecPhase
-
 def add_option(group, name, **kwargs):
     default = kwargs.pop("default", None)
     default = cmdargs.get_default(name, default)
@@ -3490,17 +3511,21 @@ def add_options(parser):
     add_option(group, "--faster-cli", action="store", type=int,
                choices=[0, 1, 2], help=help_msg)
     add_option(group, "--port-init-wait", action="store", type=int,
-               help="Wait time in seconds for ports to come up")
+               help="Wait time in seconds for ports to come up -- deprecated use --max-time port <value>")
     add_option(group, "--reboot-wait", action="store", type=int,
-               help="Wait time in seconds for ports to come up")
-    add_option(group, "--fetch-core-files", action=arg_validate_exec_phase(),
+               help="Wait time in seconds for ports to come up after reboot -- deprecated use --max-time reboot <value>")
+    add_option(group, "--fetch-core-files", action=cmdargs.validate_exec_phase(exec_phases),
                help="Fetch the core files from DUT to logs location")
-    add_option(group, "--get-tech-support", action=arg_validate_exec_phase(),
+    add_option(group, "--get-tech-support", action=cmdargs.validate_exec_phase(exec_phases),
                help="Get the tech-support information from DUT to logs location")
     add_option(group, "--tc-max-timeout", action="store", type=int,
-               help="Max time that a testcase can take to execute")
+               help="Max time that a testcase can take to execute -- deprecated use --max-time function <value>")
     add_option(group, "--module-init-max-timeout", action="store", type=int,
-               help="Max time that a module initialization can take to execute")
+               help="Max time that a module initialization can take to execute -- deprecated use --max-time module <value>")
+    add_option(group, "--max-time", action=cmdargs.validate_max_time(),
+               nargs='+', metavar=("<type> <value>"),
+               help=cmdargs.max_time_help_msg, default={})
+
     add_option(group, "--results-prefix", action="store",
                help="Prefix to be used for results")
     add_option(group, "--results-compare", action="store",
@@ -3511,9 +3536,8 @@ def add_options(parser):
                help="include given duts from testbed")
     add_option(group, "--run-progress-report", action="store",
                type=int, help="send run progress report at given frequency")
-    add_option(group, "--env", action="append",
-               metavar=("<name>", "<value>"),
-               nargs=2, help="environment variables")
+    add_option(group, "--env", action=cmdargs.validate_env(), default={}, nargs='+',
+               help="set environment variables", metavar=("<name>=<value>"))
     help_msg = """
         Enable executing tests in random order.
             <0> disable random order execution
@@ -3523,7 +3547,7 @@ def add_options(parser):
     """
     add_option(group, "--random-order", action="store", type=int,
                choices=[0, 1, 2, 3], help=help_msg)
-    add_option(group, "--repeat-test", action=arg_validate_repeat(),
+    add_option(group, "--repeat-test", action=cmdargs.validate_repeat(),
                metavar=("<type>", "<times>"), nargs=2,
                help="repeat each test function given number of times")
     add_option(group, "--rps-reboot", action="store",
@@ -3580,8 +3604,7 @@ def add_options(parser):
     add_option(group, "--change-section", action="append", nargs=2,
                metavar=("<from>", "<to>"), help=help_msg)
     add_option(group, "--ixserver", action="append", help="override ixnetwork server")
-    add_option(group, "--ui-type", action="store",
-               choices=['click', 'klish', 'click-fallback', 'klish-fallback', 'rest-put', 'rest-patch'],
+    add_option(group, "--ui-type", action="store", choices=ui_types,
                help="CLI type needed in scripts execution")
     help_msg = """
         Port breakout configuration mode.
@@ -3630,6 +3653,12 @@ def set_work_area(val):
     global gWorkArea
     gWorkArea = val
 
+def read_cfg_dict(config, group, name, default):
+    value = config.getoption(group)
+    if name in value:
+        return value[name], False
+    return default[name], True
+
 def _create_work_area2(config):
     missing = []
     for arg in config.args:
@@ -3661,13 +3690,9 @@ def _create_work_area2(config):
     cfg.syslog_check = config.getoption("--syslog-check")
     cfg.save_sairedis = config.getoption("--save-sairedis")
     cfg.faster_init = bool(config.getoption("--faster-init", 1))
-    cfg.port_init_wait = config.getoption("--port-init-wait")
-    cfg.reboot_wait = config.getoption("--reboot-wait")
     cfg.fetch_core_files = config.getoption("--fetch-core-files")
     cfg.get_tech_support = config.getoption("--get-tech-support")
     cfg.skip_verify_config = config.getoption("--skip-verify-config")
-    cfg.tc_max_timeout = config.getoption("--tc-max-timeout")
-    cfg.module_max_timeout = config.getoption("--module-init-max-timeout")
     cfg.results_prefix = config.getoption("--results-prefix")
     cfg.results_compare = config.getoption("--results-compare")
     cfg.exclude_devices = config.getoption("--exclude-devices")
@@ -3678,7 +3703,7 @@ def _create_work_area2(config):
     cfg.first_test_only = config.getoption("--first-test-only", False)
     cfg.tryssh = config.getoption("--tryssh", 0)
     cfg.random_order = config.getoption("--random-order", 1)
-    cfg.env = config.getoption("--env", [])
+    cfg.env = config.getoption("--env", {})
     cfg.pdb_on_error = config.getoption("--pdb", False)
     x_flag = config.getoption("-x", False)
     exitfirst_flag = config.getoption("--exitfirst", False)
@@ -3706,6 +3731,17 @@ def _create_work_area2(config):
     cfg.device_feature_enable = config.getoption("--device-feature-enable", [])
     cfg.device_feature_disable = config.getoption("--device-feature-disable", [])
     cfg.device_feature_group = config.getoption("--device-feature-group", "broadcom")
+
+    val, _ = read_cfg_dict(config, "--max-time", "session", cmdargs.max_time_default)
+    cfg.session_max_timeout = val
+    val, isdef = read_cfg_dict(config, "--max-time", "reboot", cmdargs.max_time_default)
+    cfg.reboot_wait = config.getoption("--reboot-wait") if isdef else val
+    val, isdef = read_cfg_dict(config, "--max-time", "port", cmdargs.max_time_default)
+    cfg.port_init_wait = config.getoption("--port-init-wait") if isdef else val
+    val, isdef = read_cfg_dict(config, "--max-time", "module", cmdargs.max_time_default)
+    cfg.module_max_timeout = config.getoption("--module-init-max-timeout") if isdef else val
+    val, isdef = read_cfg_dict(config, "--max-time", "function", cmdargs.max_time_default)
+    cfg.tc_max_timeout = config.getoption("--tc-max-timeout") if isdef else val
 
     if cfg.pde:
         cfg.skip_init_config = True
@@ -3986,14 +4022,14 @@ def shuffle_items(items, order=1):
     module_names = list(modules.keys())
     if order:
         seed = utils.get_random_seed()
-        Random(seed).shuffle(module_names)
+        random.Random(seed).shuffle(module_names)
     new_items = []
     for module_name in module_names:
         module_items = modules[module_name]
         if order == 3:
             order = 2 if tcmap.get_module_info(module_name).random else 0
         if order == 2:
-            Random(seed).shuffle(module_items)
+            random.Random(seed).shuffle(module_items)
         new_items.extend(module_items)
     items[:] = new_items
 
@@ -4513,7 +4549,7 @@ def consolidate_results(progress=None, thread=False, count=None):
     if wa and wa._context:
         wa._context.run_progress_report(len(consolidated))
     tcresults_csv = paths.get_tc_results_csv(logs_path, True)
-    generate_module_report(results_csv, tcresults_csv, 1)
+    generate_module_report(None, None, results_csv, tcresults_csv, 1)
 
     # testcases
     results = read_all_results(logs_path, "testcases")
@@ -4536,7 +4572,7 @@ def consolidate_results(progress=None, thread=False, count=None):
     results_htm = paths.get_tc_results_htm(logs_path, True)
     align = {col: True for col in ["Feature", "TestCase", "Description", "Function", "Module", "Devices"]}
     Result.write_report_html(results_htm, consolidated, ReportType.TESTCASES, True, 4, links=links, align=align)
-    generate_features_report(results_csv, tcresults_csv, 1)
+    generate_features_report(None, None, results_csv, tcresults_csv, 1)
 
     # analisys - reuse from testcases report
     try:
@@ -4606,6 +4642,21 @@ def consolidate_results(progress=None, thread=False, count=None):
     sysinfo_htm = paths.get_sysinfo_htm(logs_path, True)
     align = {col: True for col in ["Module"]}
     Result.write_report_html(sysinfo_htm, consolidated, ReportType.SYSINFO, True, links=links, align=align)
+
+    # coverage
+    consolidated = read_all_results(logs_path, "coverage")
+    coverage_csv = paths.get_coverage_csv(logs_path, True)
+    Result.write_report_csv(coverage_csv, consolidated, ReportType.COVERAGE)
+    links, indexes = get_header_info(ReportType.COVERAGE, ["Node", "Module"])
+    for row in consolidated:
+        node_name = row[indexes["Node"]]
+        coverage_htm = paths.get_coverage_htm(node_name)
+        links["Node"].append(coverage_htm)
+        mlog = paths.get_mlog_path(row[indexes["Module"]], node_name)
+        links["Module"].append(mlog)
+    coverage_htm = paths.get_coverage_htm(logs_path, True)
+    align = {col: True for col in ["Module"]}
+    Result.write_report_html(coverage_htm, consolidated, ReportType.COVERAGE, True, links=links, align=align)
 
     # CLI files
     all_file = paths.get_cli_log("", logs_path, True)
@@ -4787,18 +4838,18 @@ def generate_email_report(count=None):
     report_htm = paths.get_report_htm(logs_path, True)
     generate_email_report_files(files, nodes, report_htm)
 
-def generate_module_report(results_csv, tcresults_csv, offset=0):
+def generate_module_report(func_rows, tc_rows, results_csv, tcresults_csv, offset=0):
     [_, logs_path, _] = _get_logs_path()
     report_csv = paths.get_modules_csv(logs_path, bool(offset))
     report_htm = paths.get_modules_htm(logs_path, bool(offset))
     syslog_htm = paths.get_syslog_htm(None, bool(offset))
-    rows = Result.read_report_csv(results_csv)
+    func_rows = func_rows or Result.read_report_csv(results_csv)
     module_logs = OrderedDict()
     sys_logs = OrderedDict()
     modules = OrderedDict()
 
     tc_all, tc_pass = OrderedDict(), OrderedDict()
-    tc_rows = Result.read_report_csv(tcresults_csv)
+    tc_rows = tc_rows or Result.read_report_csv(tcresults_csv)
     for row in tc_rows:
         module = row[offset+7]
         res = row[offset+2]
@@ -4831,7 +4882,7 @@ def generate_module_report(results_csv, tcresults_csv, offset=0):
             module["Node"] = ""
         return module
 
-    for row in rows:
+    for row in func_rows:
         name = row[offset]
         fallback, ui_type = _get_module_ui(name)
         ro_global, ro_module = _get_module_random(name)
@@ -4950,13 +5001,13 @@ def save_failed_function_list(csv_file, offset=0):
     out_file = os.path.splitext(csv_file)[0]+'_fails.txt'
     utils.write_file(out_file, "\n".join(func_list))
 
-def generate_features_report(results_csv, tcresults_csv, offset=0):
+def generate_features_report(func_rows, tc_rows, results_csv, tcresults_csv, offset=0):
     modules = OrderedDict()
     func_time = dict()
     func_syslogs = dict()
     tcmodmap = dict()
-    tc_rows = Result.read_report_csv(tcresults_csv)
-    func_rows = Result.read_report_csv(results_csv)
+    tc_rows = tc_rows or Result.read_report_csv(tcresults_csv)
+    func_rows = func_rows or  Result.read_report_csv(results_csv)
     for row in func_rows:
         name = row[offset]
         func = row[offset+1]
@@ -5153,9 +5204,29 @@ def _report_data_generation(execution_start, execution_end,
     tcresults_htm = paths.get_tc_results_htm(logs_path)
     results_csv = paths.get_results_csv(logs_path)
     results_htm = paths.get_results_htm(logs_path)
+    syslog_csv = paths.get_syslog_csv(logs_path)
+    stats_csv = paths.get_stats_csv(logs_path)
+    sysinfo_csv = paths.get_sysinfo_csv(logs_path)
+    coverage_csv = paths.get_coverage_csv(logs_path)
 
-    generate_features_report(results_csv, tcresults_csv)
+    # read files
     tc_rows = Result.read_report_csv(tcresults_csv)
+    func_rows = Result.read_report_csv(results_csv)
+    syslog_rows = Result.read_report_csv(syslog_csv)
+    stats_rows = Result.read_report_csv(stats_csv)
+    sysinfo_rows = Result.read_report_csv(sysinfo_csv)
+    coverage_rows = Result.read_report_csv(coverage_csv)
+
+    # features
+    generate_features_report(func_rows, tc_rows, results_csv, tcresults_csv)
+
+    # failed functions
+    save_failed_function_list(results_csv)
+
+    # modules
+    generate_module_report(func_rows, tc_rows, results_csv, tcresults_csv)
+
+    # test cases
     links, indexes = get_header_info(ReportType.TESTCASES, ["Result", "Module"], False)
     for row in tc_rows:
         mlog = paths.get_mlog_path(row[indexes["Module"]])
@@ -5164,9 +5235,7 @@ def _report_data_generation(execution_start, execution_end,
     align = {col: True for col in ["Feature", "TestCase", "Description", "Function", "Module", "Devices"]}
     Result.write_report_html(tcresults_htm, tc_rows, ReportType.TESTCASES, False, links=links, align=align)
 
-    save_failed_function_list(results_csv)
-    generate_module_report(results_csv, tcresults_csv)
-    func_rows = Result.read_report_csv(results_csv)
+    # functions
     links, indexes = get_header_info(ReportType.FUNCTIONS, ["Module", "Result", "Syslogs"], False)
     for row in func_rows:
         syslog_htm = paths.get_syslog_htm()
@@ -5178,9 +5247,7 @@ def _report_data_generation(execution_start, execution_end,
     Result.write_report_html(results_htm, func_rows, ReportType.FUNCTIONS, False, links=links, align=align)
 
     # syslogs
-    syslog_csv = paths.get_syslog_csv(logs_path)
     syslog_htm = paths.get_syslog_htm(logs_path)
-    syslog_rows = Result.read_report_csv(syslog_csv)
     links, indexes = get_header_info(ReportType.SYSLOGS, ["Device", "Module"], False)
     for row in syslog_rows:
         dlog = paths.get_dlog_path(row[indexes["Device"]])
@@ -5191,8 +5258,6 @@ def _report_data_generation(execution_start, execution_end,
     Result.write_report_html(syslog_htm, syslog_rows, ReportType.SYSLOGS, False, links=links, align=align)
 
     # stats
-    stats_csv = paths.get_stats_csv(logs_path)
-    stats_rows = Result.read_report_csv(stats_csv)
     links, indexes = get_header_info(ReportType.STATS, ["Module"], False)
     for row in stats_rows:
         mlog = paths.get_mlog_path(row[indexes["Module"]])
@@ -5202,8 +5267,6 @@ def _report_data_generation(execution_start, execution_end,
     Result.write_report_html(stats_htm, stats_rows, ReportType.STATS, False, links=links, align=align)
 
     # sysinfo
-    sysinfo_csv = paths.get_sysinfo_csv(logs_path)
-    sysinfo_rows = Result.read_report_csv(sysinfo_csv)
     links, indexes = get_header_info(ReportType.SYSINFO, ["Module"], False)
     for row in sysinfo_rows:
         mlog = paths.get_mlog_path(row[indexes["Module"]])
@@ -5212,6 +5275,16 @@ def _report_data_generation(execution_start, execution_end,
     align = {col: True for col in ["Module"]}
     Result.write_report_html(sysinfo_htm, sysinfo_rows, ReportType.SYSINFO, False, links=links, align=align)
 
+    # coverage
+    links, indexes = get_header_info(ReportType.COVERAGE, ["Module"], False)
+    for row in coverage_rows:
+        mlog = paths.get_mlog_path(row[indexes["Module"]])
+        links["Module"].append(mlog)
+    coverage_htm = paths.get_coverage_htm(logs_path)
+    align = {col: True for col in ["Module"]}
+    Result.write_report_html(coverage_htm, coverage_rows, ReportType.COVERAGE, False, links=links, align=align)
+
+    # summary
     tc_result_dict = {}
     for key in results_map:
         if key:

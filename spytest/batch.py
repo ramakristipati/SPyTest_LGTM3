@@ -93,7 +93,7 @@ def load_module_csv():
         if len(parts) > 1:
             if not wa.repeat_info:
                 continue
-            if env.get("SPYTEST_REPEAT_MODULE_SUPPORT", "0") == "0":
+            if env.get("SPYTEST_REPEAT_MODULE_SUPPORT") == "0":
                 continue
             name = "{}--{}.py".format(parts[0], parts[1])
             module_row = [bucket, order, name]
@@ -918,6 +918,7 @@ def create_dashboard(logs_path):
     kwargs.results_stats = paths.get_stats_htm(consolidated=consolidated)
     kwargs.results_syslog = paths.get_syslog_htm(consolidated=consolidated)
     kwargs.results_sysinfo = paths.get_sysinfo_htm(consolidated=consolidated)
+    kwargs.results_coverage = paths.get_coverage_htm(consolidated=consolidated)
     kwargs.results_alerts = paths.get_alerts_log(consolidated=consolidated)
     kwargs.results_functions_png = paths.get_results_png(consolidated=consolidated)
     kwargs.results_testcases_png = paths.get_tc_results_png(consolidated=consolidated)
@@ -933,11 +934,9 @@ def configure(config, logs_path, root_logs_path):
     init_stdout(config, logs_path)
     dist.configure(config, logs_path, is_slave())
     create_dashboard(logs_path)
-    if is_master():
+    if not is_member():
         create_repeated_files(config, root_logs_path)
-        return True
-    create_repeated_folder(config, root_logs_path)
-    return False
+    return is_master()
 
 def create_repeated_files(config, logs_path):
 

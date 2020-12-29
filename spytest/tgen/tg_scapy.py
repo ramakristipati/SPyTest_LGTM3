@@ -39,7 +39,7 @@ class ScapyClient(object):
             opts = ', '.join(['{}={!r}'.format(k, v) for k, v in kwargs.items()])
             self.logger.info("TODO {} {}".format(fname, opts))
 
-    def save_log(self, name, data):
+    def _save_log(self, name, data):
         if self.base:
             self.base.save_log(name, data)
         else:
@@ -51,7 +51,7 @@ class ScapyClient(object):
         else:
             self.logger.info("TODO {}".format(msg))
 
-    def log_info(self, *args):
+    def _log_info(self, *args):
         self.logger.info(*args)
 
     def log_remote_alerts(self, phase):
@@ -80,17 +80,17 @@ class ScapyClient(object):
             self.logger.info("Server Logs Path {}".format(path))
             self.log_remote_alerts(phase)
         elif phase == "post-module-epilog":
-            self.log_info("ScapyClient instrument: {} {}".format(phase, context))
+            self._log_info("ScapyClient instrument: {} {}".format(phase, context))
             local_file = "{}.tgen".format(paths.get_mlog_name(context))
-            self.log_info("ScapyClient instrument: {} {}".format(phase, local_file))
+            self._log_info("ScapyClient instrument: {} {}".format(phase, local_file))
             try:
                 data = self._execute(func_name, self.conn.server_control, "read-log", local_file)
-                self.save_log(local_file, data)
+                self._save_log(local_file, data)
             except Exception as exp:
-                self.log_info("Failed to read log {} {}".format(context, str(exp)))
+                self._log_info("Failed to read log {} {}".format(context, str(exp)))
             self.log_remote_alerts(phase)
         else:
-            self.log_info("ScapyClient instrument: ignored {} {}".format(phase, context))
+            self._log_info("ScapyClient instrument: ignored {} {}".format(phase, context))
 
     def rpyc_connect(self):
         import rpyc
@@ -161,7 +161,7 @@ class ScapyClient(object):
     def _execute(self, func_name, func, *args, **kwargs):
         #msg1 = " ".join(map(str,args))
         #msg2 = ','.join(['{}={!r}'.format(k,v) for k,v in kwargs.items()])
-        #self.log_info("ScapyClient: {} {} {} {}".format(self.node_name, func_name, msg1, msg2))
+        #self._log_info("ScapyClient: {} {} {} {}".format(self.node_name, func_name, msg1, msg2))
         try:
             res = func(self.node_name, *args, **kwargs)
             return copy.copy(res)

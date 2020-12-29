@@ -214,7 +214,7 @@ def config_bgp(config='yes'):
             ip_api.config_route_map_global_nexthop(dut, 'rmap_v6', config='yes')
             for rem_as,nbr in zip(remote_as_list,nbr_list):
                 bgp_api.config_bgp(dut=dut, local_as=dut_as, remote_as=rem_as, neighbor=nbr,
-                                   config_type_list=['neighbor', 'ebgp_mhop' 'bfd', 'connect', 'redist'],
+                                   config_type_list=['neighbor', 'ebgp_mhop' ,'bfd', 'connect', 'redist'],
                                    redistribute='connected', connect='3', ebgp_mhop=2)
                 bgp_api.config_bgp(dut, local_as=dut_as, config='yes', config_type_list=["redist", "activate","routeMap"],
                                    neighbor=nbr, redistribute='connected', addr_family='ipv6',routeMap='rmap_v6', diRection='in')
@@ -242,7 +242,7 @@ def config_bgp(config='yes'):
             st.wait(2)
             for rem_as, nbr,vrf in zip(remote_as_list, nbr_list,["default",vrf1]):
                 bgp_api.config_bgp(dut=dut, local_as=dut_as, remote_as=rem_as, neighbor=nbr,
-                                   config_type_list=['neighbor', 'ebgp_mhop' 'bfd', 'connect', 'redist'],
+                                   config_type_list=['neighbor', 'ebgp_mhop', 'bfd', 'connect', 'redist'],
                                    redistribute='connected', connect='3', ebgp_mhop=2,vrf_name = vrf)
                 bgp_api.config_bgp(dut, local_as=dut_as, config='yes', config_type_list=["redist", "activate","routeMap"],
                                    neighbor=nbr, redistribute='connected', addr_family='ipv6',vrf_name = vrf,
@@ -257,7 +257,7 @@ def config_bgp(config='yes'):
             st.wait(2)
             for rem_as, nbr,vrf in zip(remote_as_list, nbr_list,["default",vrf1]):
                 bgp_api.config_bgp(dut=dut, local_as=dut_as, remote_as=rem_as, neighbor=nbr,
-                                   config_type_list=['neighbor', 'ebgp_mhop' 'bfd', 'connect', 'redist'],
+                                   config_type_list=['neighbor', 'ebgp_mhop', 'bfd', 'connect', 'redist'],
                                    redistribute='connected', connect='3', ebgp_mhop=2,vrf_name = vrf)
                 bgp_api.config_bgp(dut, local_as=dut_as, config='yes', config_type_list=["redist", "activate","routeMap"],
                                    neighbor=nbr, redistribute='connected', addr_family='ipv6',vrf_name = vrf,

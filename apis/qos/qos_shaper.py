@@ -235,6 +235,8 @@ def clear_port_shaper(dut, port='', shaper_data='', **kwargs):
     remove_shaper = kwargs.get('remove_shaper', True)
     if (not qos_clear) and cli_type=='click':
         cli_type = 'klish'
+        if not st.is_feature_supported("remove_qos_profile", dut):
+            cli_type = 'click'
     if cli_type == 'click':
         clear_qos_config(dut)
     elif cli_type == 'klish':

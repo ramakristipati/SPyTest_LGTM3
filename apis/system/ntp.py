@@ -246,6 +246,8 @@ def show_ntp_status(dut,mvrf=False):
     st.log("show ntp status")
     if mvrf:
         command = "sudo cgexec -g l3mdev:mgmt ntpstat"
+        if not st.is_feature_supported("ip_vrf_exec_mgmt_ntpstat", dut):
+            command = 'sudo ip vrf exec mgmt ntpstat'
     else:
         command = "ntpstat"
     output = st.show(dut, command)

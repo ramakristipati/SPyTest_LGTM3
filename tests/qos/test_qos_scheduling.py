@@ -1,13 +1,14 @@
 import pytest
 from spytest import st, tgapi, SpyTestDict
 
-from apis.system.interface import interface_status_show, clear_interface_counters, show_interface_counters_all
+from apis.system.interface import interface_status_show
+from apis.system.interface import clear_interface_counters
+from apis.system.interface import show_interface_counters_all
 import apis.system.switch_configuration as sconf_obj
 from apis.switching.vlan import create_vlan_and_add_members, clear_vlan_configuration
 from apis.switching.mac import config_mac_agetime, get_mac_agetime, get_mac
 from apis.qos.qos_shaper import apply_queue_shcheduling_config, clear_port_shaper
 import apis.common.asic as asicapi
-import apis.common.asic_bcm as asic_bcm
 
 from utilities.common import filter_and_select, random_vlan_list
 from utilities.parallel import exec_all, ensure_no_exception
@@ -29,7 +30,7 @@ def qos_module_hooks(request):
         st.debug("The DUT interconnected port speed: {}".format(port_speed_info[vars.D1D2P1]))
         st.report_unsupported("msg", "The TG connected port and the DUT interconnected port speeds are not equal")
     scheduling_vars()
-    scheduling_data.pmap_details = asic_bcm.get_interface_pmap_details(vars.D1, interface_name=[vars.D1D2P1])
+    scheduling_data.pmap_details = asicapi.get_intf_pmap(vars.D1, interface_name=[vars.D1D2P1])
     if not scheduling_data.pmap_details:
         st.debug("PMAP details are: {}".format(scheduling_data.pmap_details))
         st.report_fail('no_data_found')
@@ -126,7 +127,7 @@ def scheduling_module_config(config='yes'):
             st.report_fail("msg", "MAC age out time is not configured as: {}".format(scheduling_data.ageout_time))
         st.debug("Create a vlan and add ports as tagged members to it")
         if not create_vlan_and_add_members([{"dut": [vars.D1], "vlan_id": scheduling_data.vlan,
-                                             "tagged": [vars.D1T1P1, vars.D1T1P2, vars.D1D2P1]}, 
+                                             "tagged": [vars.D1T1P1, vars.D1T1P2, vars.D1D2P1]},
                                             {"dut": [vars.D2], "vlan_id": scheduling_data.vlan,
                                              "tagged": [vars.D2T1P1, vars.D2T1P2, vars.D2D1P1]}]):
             st.report_fail("msg", "Failed to add port as tagged members of VLAN: {}".format(scheduling_data.vlan))

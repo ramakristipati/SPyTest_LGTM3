@@ -205,7 +205,7 @@ def _verify_aggregate_stats(tr_details,mode,comp_type,tolerance_factor,delay_fac
 
         cmsg = 'Pair: {}, Transmit Ports: {}, Receive Ports: {}'.format(tr_pair, tx_ports, rx_ports)
         st.log('Validating Traffic, Pair: {}, Transmit Ports: {}, Receive Ports: {}'.format(tr_pair,tx_ports,rx_ports))
-        retry_count = retry + 1 if not retry and comp_type == 'packet_rate' else retry
+        retry_count = retry + 1 if not retry else retry
         tx_ph, rx_ph = None, None
         for loop in range(0, int(retry_count) + 1):
             if loop > 0:
@@ -246,13 +246,12 @@ def _verify_aggregate_stats(tr_details,mode,comp_type,tolerance_factor,delay_fac
                 ret_all.append(True)
                 break
             elif loop != retry_count:
-                if not retry and comp_type == 'packet_rate' and diff > (tolerance + 5):
-                    msg = 'The traffic difference is in not between {} and {}. Skipping the retry'.format(tolerance, tolerance + 5)
-                    st.debug(msg)
-                else:
+                if retry or diff <= tolerance + 5:
                     st.log('Traffic Varification: {}, {}'.format('Failure', cmsg))
                     st.log('Expected: {}, Actual: {}, diff%: {}'.format(exp_val, real_rx_val, diff))
                     continue
+                # msg = 'The traffic difference is in not between {} and {}. Skipping the retry'.format(tolerance, tolerance + 5)
+                # st.debug(msg)
             return_value = False
             ret_all.append(False)
             st.log('Traffic Validation: {}, {}'.format('Failure', cmsg))
@@ -293,7 +292,7 @@ def _verify_streamlevel_stats(tr_details,mode,comp_type,tolerance_factor,delay_f
                 ratio = ratio * len(stream)
             tx_ph = txObj.get_port_handle(txPort)
             for strelem,ratelem in zip(stream,ratio):
-                retry_count = retry + 1 if not retry and comp_type == 'packet_rate' else retry
+                retry_count = retry + 1 if not retry else retry
                 for loop in range(0, int(retry_count)+1):
                     if loop > 0:
                         st.log('The difference is not in the given tolerance. So, retrying the stats fetch once again....{}'.format(loop))
@@ -347,13 +346,12 @@ def _verify_streamlevel_stats(tr_details,mode,comp_type,tolerance_factor,delay_f
                             ret_all.append(True)
                             break
                         if loop != retry_count:
-                            if not retry and comp_type == 'packet_rate' and diff > (tolerance + 5):
-                                msg = 'The traffic difference is in not between {} and {}. Skipping the retry'.format(tolerance, tolerance + 5)
-                                st.debug(msg)
-                            else:
-                                st.log('Traffic Varification: {}, {} streamid: {}'.format('Failure', cmsg, strelem))
+                            if retry or diff <= tolerance + 5:
+                                st.log('Traffic Varification: {}, {}'.format('Failure', cmsg))
                                 st.log('Expected: {}, Actual: {}, diff%: {}'.format(exp_val, real_rx_val, diff))
                                 continue
+                            # msg = 'The traffic difference is in not between {} and {}. Skipping the retry'.format(tolerance, tolerance + 5)
+                            # st.debug(msg)
                     return_value = False
                     ret_all.append(False)
                     st.log('Traffic Validation: {}, {} streamid: {}'.format('Failure',cmsg, strelem))
@@ -721,7 +719,7 @@ def validate_packet_capture(**kwargs):
     header_list = kwargs.get('header_list','new_ixia_format')
     offset_list = kwargs['offset_list']
     value_list = kwargs['value_list']
-    num_frames = kwargs.get('var_num_frames', 20)
+    num_frames = int(kwargs.get('var_num_frames', 20))
     return_index =kwargs.get('return_index', 0)
 
     _log_call("validate_packet_capture", **kwargs)

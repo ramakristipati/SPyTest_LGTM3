@@ -43,7 +43,6 @@ stale_list_ignore = [
     "rate_percent", #TODO
 
     #
-    "circuit_endpoint_type",
     "enable_stream",
     "enable_stream_only_gen",
     #
@@ -139,6 +138,7 @@ class ScapyPacket(object):
         self.rx_count = 0
         self.rx_sock = None
         self.tx_sock = None
+        self.tx_sock_failed = False
         self.finished = False
         self.exabgp_nslist = []
         self.cleanup()
@@ -227,6 +227,7 @@ class ScapyPacket(object):
         self.finished = True
         self.rx_sock = self.close_sock(self.rx_sock)
         self.tx_sock = self.close_sock(self.tx_sock)
+        self.tx_sock_failed = False
         self.init_bridge(self.iface)
         self.finished = False
 
@@ -287,8 +288,11 @@ class ScapyPacket(object):
             if not self.tx_sock:
                 try:
                     self.tx_sock = L2Socket(iface)
+                    self.tx_sock_failed = False
                 except Exception as exp:
-                    self.logger.debug("Failed to create L2Socket {} {}".format(iface, exp))
+                    func = self.logger.debug if self.tx_sock_failed else self.error
+                    self.tx_sock_failed = True
+                    func("Failed to create L2Socket {} {}".format(iface, exp))
 
             if self.tx_sock:
                 try: return self.tx_sock.send(data)
@@ -457,7 +461,7 @@ class ScapyPacket(object):
 
     def fill_emulation_params(self, stream):
 
-        circuit_endpoint_type = stream.kws.pop("circuit_endpoint_type", None)
+        circuit_endpoint_type = stream.kws.pop("circuit_endpoint_type", "ipv4")
         self.logger.debug("stream.kws-0 = {}".format(stream.kws))
 
         src_info, dst_info = {}, {}
@@ -1350,7 +1354,7 @@ class ScapyPacket(object):
         #ip_version = self.utils.intval(intf.bgp_kws, "ip_version", 4)
 
         # create route config
-        cmdfile = self.config_exabgp_route(enable, intf, index)
+        cmdfile, ip_cmdfile = self.config_exabgp_route(enable, intf, index)
 
         # build router id from ns
         router_id = ns.replace("_", ".") + ".0"
@@ -1429,6 +1433,11 @@ class ScapyPacket(object):
         """.format(ns, sh_file))
         self.utils.shexec(cmds)
 
+        #cmds = textwrap.dedent("""
+            #ip netns exec ns_{0} bash {1}
+        #""".format(ns, ip_cmdfile))
+        #self.utils.shexec(cmds)
+
         self.logger.info(self.utils.cat_file(envfile))
         self.logger.info(self.utils.cat_file(cfgfile))
         self.log_large_file(cmdfile)
@@ -1441,7 +1450,8 @@ class ScapyPacket(object):
     def config_exabgp_route(self, enable, intf, index=0):
         ns = "{}_{}".format(intf.name, index)
         cmdfile = self.exabgpd_file(ns, "cmd")
-        cmds = []
+        ip_cmdfile = self.exabgpd_file(ns, "ip_cmd")
+        cmds, ip_cmds = [], []
 
         for br in intf.bgp_routes.values():
             if not br.enable: continue
@@ -1461,19 +1471,23 @@ class ScapyPacket(object):
                     remote_ipv6_addr = intf.bgp_kws.get("remote_ipv6_addr", "")
                     if remote_ipv6_addr:
                         cmd = "announce route {}/128 next-hop self".format(prefix)
+                        ip_cmd = "ip -6 addr add {}/128 dev veth1".format(prefix)
                         prefix = self.utils.incrementIPv6(prefix, "0:0:0:1::")
                     else:
                         cmd = "announce route {}/24 next-hop self".format(prefix)
+                        ip_cmd = "ip addr add {}/24 dev veth1".format(prefix)
                         prefix = self.utils.incrementIPv4(prefix, "0.0.1.0")
                     # append as-path sequence
                     if as_seq: cmd = cmd + "as-path [{}]".format(as_seq)
                     cmds.append(cmd)
+                    ip_cmds.append(ip_cmd)
         self.utils.fwrite("\n".join(cmds), cmdfile)
+        self.utils.fwrite("\n".join(ip_cmds), ip_cmdfile)
         #############################
         # TODO: batch routes
         # announce attribute next-hop self nlri 100.10.0.0/16 100.20.0.0/16
         #############################
-        return cmdfile
+        return cmdfile, ip_cmdfile
 
     def control_exabgp(self, intf):
         num_routes = self.utils.intval(intf.bgp_kws, "num_routes", 0)

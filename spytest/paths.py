@@ -74,6 +74,18 @@ def get_report_txt(prefix=None, consolidated=False):
 def get_report_htm(prefix=None, consolidated=False):
     return get_file_path("summary", "html", prefix, consolidated)
 
+def get_summary_txt(prefix=None, consolidated=False):
+    return get_file_path("summary", "txt", prefix, consolidated)
+
+def get_summary_htm(prefix=None, consolidated=False):
+    return get_file_path("summary", "html", prefix, consolidated)
+
+def get_coverage_csv(prefix=None, consolidated=False):
+    return get_file_path("coverage", "csv", prefix, consolidated)
+
+def get_coverage_htm(prefix=None, consolidated=False):
+    return get_file_path("coverage", "html", prefix, consolidated)
+
 def get_modules_csv(prefix=None, consolidated=False):
     return get_file_path("modules", "csv", prefix, consolidated)
 
@@ -112,7 +124,7 @@ def get_dlog_path(dut, prefix=None):
 
 def get_mlog_basename(nodeid):
     module = nodeid.split(':')[0]
-    if env.get("SPYTEST_REPEAT_MODULE_SUPPORT", "0") != "0":
+    if env.get("SPYTEST_REPEAT_MODULE_SUPPORT") != "0":
         module = os.path.basename(module)
     return module
 

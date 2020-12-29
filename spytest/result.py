@@ -22,14 +22,23 @@ class ReportType(enum.IntEnum):
     SYSINFO = 4
     DEFAULTS = 5
     ANALISYS = 6
+    COVERAGE = 7
 
 hide_log_text, hide_log_host = True, True
+hide_models, hide_chips = True, True
 
 slave_cols0 = ['#', 'Module', 'TestFunction', 'Result', 'TimeTaken',
-              'ExecutedOn', 'Syslogs', 'FCLI', "TSSH", "DCNT", 'Description', "Devices"]
-slave_cols1 = ['#', 'Feature', 'TestCase', 'Result',
-              'ResultType', 'ExecutedOn', 'Description', 'Function', 'Module', "Devices"]
-slave_cols2 = ['#', "Device", 'Module', 'TestFunction', "LogDate", "LogHost", "LogLevel", "LogModule", "LogMessage", "LogText"]
+              'ExecutedOn', 'Syslogs', 'FCLI', "TSSH", "DCNT",
+              'Description', "Devices", "Models", "Chips"]
+if hide_models: slave_cols0.remove("Models")
+if hide_chips: slave_cols0.remove("Chips")
+slave_cols1 = ['#', 'Feature', 'TestCase', 'Result', 'ResultType', 'ExecutedOn',
+               'Description', 'Function', 'Module', "Devices",
+               "Models", "Chips"]
+if hide_models: slave_cols1.remove("Models")
+if hide_chips: slave_cols1.remove("Chips")
+slave_cols2 = ["#", "Device", "Module", "TestFunction", "Result", "LogDate",
+               "LogHost", "LogLevel", "LogModule", "LogMessage", "LogText"]
 if hide_log_text: slave_cols2.remove("LogText")
 if hide_log_host: slave_cols2.remove("LogHost")
 slave_cols3 = ["#", "Module", "Function", "Result", "Test Time", "Helper Time", "CMD Time",
@@ -38,14 +47,23 @@ slave_cols4 = ["#", "Module", "DUTs", "MEM0", "MEM1", "MEM", "CPU0", "CPU1", "CP
 slave_cols5 = ["#", "Name", "Value"]
 slave_cols6 = ['Feature', 'TestCase', 'Result', 'Description', 'Function', 'Module', "Devices",
                'Analisis', 'DUT Defect ID', 'SQA Defect ID', 'Engineer']
+slave_cols7 = ["#", "Module", "Devices", "Models", "Chips", "TGen"]
 
+slave_cols = [slave_cols0, slave_cols1, slave_cols2, slave_cols3, slave_cols4,
+              slave_cols5, slave_cols6, slave_cols7]
 
-slave_cols = [slave_cols0, slave_cols1, slave_cols2, slave_cols3, slave_cols4, slave_cols5, slave_cols6]
-merge_cols0 = ['#', "Node", 'Module', 'TestFunction', 'Result',
-              'TimeTaken', 'ExecutedOn', 'Syslogs', 'FCLI', "TSSH", "DCNT", 'Description', "Devices"]
-merge_cols1 = ['#', "Node", 'Feature', 'TestCase', 'Result',
-               'ResultType', 'ExecutedOn', 'Description', 'Function', 'Module', "Devices"]
-merge_cols2 = ['#', "Node", "Device", 'Module', 'TestFunction', "LogDate", "LogHost", "LogLevel", "LogModule", "LogMessage", "LogText"]
+merge_cols0 = ['#', "Node", 'Module', 'TestFunction', 'Result', 'TimeTaken',
+               'ExecutedOn', 'Syslogs', 'FCLI', "TSSH", "DCNT", 'Description',
+               "Devices", "Models", "Chips"]
+if hide_models: merge_cols0.remove("Models")
+if hide_chips: merge_cols0.remove("Chips")
+merge_cols1 = ['#', "Node", 'Feature', 'TestCase', 'Result', 'ResultType',
+               'ExecutedOn', 'Description', 'Function', 'Module', "Devices",
+               "Models", "Chips"]
+if hide_models: merge_cols1.remove("Models")
+if hide_chips: merge_cols1.remove("Chips")
+merge_cols2 = ["#", "Node", "Device", "Module", "TestFunction", "Result", "LogDate",
+               "LogHost", "LogLevel", "LogModule", "LogMessage", "LogText"]
 if hide_log_text: merge_cols2.remove("LogText")
 if hide_log_host: merge_cols2.remove("LogHost")
 merge_cols3 = ["#", "Node", "Module", "Function", "Result", "Test Time", "Helper Time", "CMD Time",
@@ -54,7 +72,9 @@ merge_cols4 = ["#", "Node", "Module", "DUTs", "MEM0", "MEM1", "MEM", "CPU0", "CP
 merge_cols5 = ["#", "Name", "Value"]
 merge_cols6 = ['Feature', 'TestCase', 'Result', 'Description', 'Function', 'Module', "Devices",
                'Analisis', 'DUT Defect ID', 'SQA Defect ID', 'Engineer']
-merge_cols = [merge_cols0, merge_cols1, merge_cols2, merge_cols3, merge_cols4, merge_cols5, merge_cols6]
+merge_cols7 = ["#", "Node", "Module", "Devices", "Models", "Chips", "TGen"]
+merge_cols = [merge_cols0, merge_cols1, merge_cols2, merge_cols3, merge_cols4,
+              merge_cols5, merge_cols6, merge_cols7]
 
 colors_map = OrderedDict([
     (99, "green"),
@@ -142,7 +162,7 @@ class Result(object):
 
     def _build_record(self, nodeid, func, tcid, time_taken, comp, result=None,
                       desc=None, rtype="Executed", index=0, syslog_count=0,
-                      fcli=0, tryssh=0, dut_list=[]):
+                      fcli=0, tryssh=0, dut_list=[], models=[], chips=[]):
         self.count[index] = self.count[index] + 1
         result_def, desc_def = self.get()
         result = result_def if result is None else result
@@ -161,7 +181,9 @@ class Result(object):
                 "Description": desc,
                 "Function": func,
                 "Module": paths.get_mlog_basename(nodeid),
-                "Devices": " ".join(map(str, dut_list)),
+                "Devices": ", ".join(map(str, dut_list)),
+                "Models": ", ".join(map(str, models)),
+                "Chips": ", ".join(map(str, chips)),
             }
         else:
             rcdict = {
@@ -176,18 +198,22 @@ class Result(object):
                 "TSSH": tryssh,
                 "DCNT": len(dut_list),
                 "Description": desc,
-                "Devices": " ".join(map(str, dut_list)),
+                "Devices": ", ".join(map(str, dut_list)),
+                "Models": ", ".join(map(str, models)),
+                "Chips": ", ".join(map(str, chips)),
             }
+        if hide_models: rcdict.pop("Models")
+        if hide_chips: rcdict.pop("Chips")
         return rcdict
 
     def publish(self, nodeid, func, tcid, time_taken, comp, result=None,
                 desc=None, rtype="Executed", syslogs=None,
-                fcli=0, tryssh=0, dut_list=[]):
+                fcli=0, tryssh=0, dut_list=[], models=[], chips=[]):
         syslog_count = 0 if not syslogs else len(syslogs)
         index = 0 if rtype == "Executed" else 1
         rcdict = self._build_record(nodeid, func, tcid, time_taken, comp,
                                     result, desc, rtype, index, syslog_count,
-                                    fcli, tryssh, dut_list)
+                                    fcli, tryssh, dut_list, models, chips)
         self.write_csv(rcdict, index)
 
         if not comp:
@@ -200,6 +226,7 @@ class Result(object):
                     "Device": devname,
                     "Module": paths.get_mlog_basename(nodeid),
                     "TestFunction": func,
+                    "Result": rcdict["Result"],
                     "LogDate": date,
                     "LogHost": host,
                     "LogLevel": level,

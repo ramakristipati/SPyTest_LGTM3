@@ -347,9 +347,8 @@ def test_l3_ve_intf_scaling_tc_6_5():
 def get_handles_1():
     vars = st.get_testbed_vars()
 
-    st.log(vars)
-    tg1 = tgen_obj_dict[vars['tgen_list'][0]]
-    tg2 = tgen_obj_dict[vars['tgen_list'][0]]
+    tg = tgapi.get_chassis(vars)
+    tg1, tg2 = tg, tg
     tg_ph_1 = tg1.get_port_handle(vars.T1D1P1)
     tg_ph_2 = tg2.get_port_handle(vars.T1D1P2)
 

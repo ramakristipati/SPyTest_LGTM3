@@ -233,6 +233,7 @@ class TGBase(TGStubs):
         except Exception as exp:
             tgen_profiling_stop(pid)
             logger.info('Error {} executing: {}'.format(msg, func))
+            self.collect_diagnosic("tgen_eval_exception")
             if not self.in_module_start_cleanup:
                 self.exception(exp)
             self.show_status()
@@ -1165,7 +1166,7 @@ class TGIxia(TGBase):
                     logger.info("removing cached {}".format(topo_handle))
                     ret_ds=self.tg_topology_config(topology_handle=topo_handle, mode='destroy')
                     logger.info(ret_ds)
-                    tgen_wait(15)
+                    tgen_wait(2)
 
         logger.debug("TG CLEAN ALL FINISHED")
 

@@ -1967,8 +1967,8 @@ def bfd_fixture_024(request, prologue_epilogue):
     parallel.exec_parallel(True, [dut1, dut3], bfd.configure_bfd, [dict1, dict2])
     tg1.tg_traffic_config(mode='modify',stream_id=data.streams['stream_handle_list'][0],rate_pps=traffic_rate)
     tg1.tg_traffic_config(mode='enable', stream_id=data.streams['stream_handle_list'][1])
-    tg1.tg_traffic_control(action='reset', port_handle=tg_handles[1])
-    arp.delete_static_arp(dut1, tg_dut1_ip)
+    tg1.tg_traffic_config(mode='remove', stream_id=data.streams['stream_tg2_handle'])
+    arp.delete_static_arp(dut1, tg_dut1_ip, interface=D1_ports[3])
     hdrMsg("### CLEANUP End####")
 
 
@@ -2692,7 +2692,7 @@ def single_hop_deconfig(vrfunconfig='yes'):
     ############################################################################################
     hdrMsg("Step-DC6: Remove arp and ipv6 neighbor entry on dut3")
     ############################################################################################
-    arp.delete_static_arp(dut3, tg_dut3_ip)
+    arp.delete_static_arp(dut3, tg_dut3_ip, interface=D3_ports[3], mac=tg_dut3_mac)
     arp.config_static_ndp(dut3,tg_dut3_ipv6, tg_dut3_mac,D3_ports[3], operation="del")
     ############################################################################################
     hdrMsg("Step-DC7: Remove Traffic streams")
@@ -2766,8 +2766,8 @@ def single_hop_deconfig(vrfunconfig='yes'):
         ############################################################################################
         hdrMsg("Step-DC6_VRF: Remove arp and ipv6 neighbor entry on dut3")
         ############################################################################################
-        arp.delete_static_arp(dut3, tg_dut3_ip)
-        arp.config_static_ndp(dut3,tg_dut3_ipv6, tg_dut3_mac_vrf,D3_ports_vrf[3], operation="del")
+        arp.delete_static_arp(dut3, tg_dut3_ip, interface=D3_ports_vrf[3], mac=tg_dut3_mac_vrf)
+        arp.config_static_ndp(dut3, tg_dut3_ipv6, tg_dut3_mac_vrf, D3_ports_vrf[3], operation="del")
         ############################################################################################
         hdrMsg("Step-DC7_VRF: Remove Traffic streams")
         ############################################################################################

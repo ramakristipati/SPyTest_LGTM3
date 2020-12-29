@@ -10,7 +10,7 @@ def config_save(dut,shell='sonic', skip_error_check=True, **kwargs):
     :param dut: single or list of duts
     :return:
     """
-    cli_type = kwargs.get('cli_type', st.get_ui_type(dut,**kwargs))
+    cli_type = st.get_ui_type(dut,**kwargs)
     cli_type = 'klish' if cli_type in ['rest-put','rest-patch'] else cli_type
     dut_li = list(dut) if isinstance(dut, list) else [dut]
     st.log("Performing config save", dut=dut)
@@ -173,7 +173,9 @@ def config_save_reboot(dut, cli_type=''):
     config_save(dut, shell='vtysh')
     st.reboot(dut)
 
-def dut_reboot(dut, method='normal',cli_type=''):
+def dut_reboot(dut, **kwargs):
+    method = kwargs.pop("method", 'normal')
+    cli_type = kwargs.pop("cli_type", '')
     cli_type = st.get_ui_type(dut, cli_type=cli_type)
 
     if cli_type in ["rest-put", "rest-patch"]:
@@ -192,8 +194,10 @@ def dut_reboot(dut, method='normal',cli_type=''):
     else:
         reboot_cmd = "reboot"
 
-    output = st.config(dut, reboot_cmd, type=cli_type, conf=False,
-                       skip_error_check=True, max_time=1000, expect_reboot=True)
+    kwargs["max_time"] = kwargs.pop("max_time", 1000)
+    kwargs["skip_error_check"] = True
+    kwargs["expect_reboot"] = True
+    output = st.config(dut, reboot_cmd, type=cli_type, conf=False, **kwargs)
 
     return output
 

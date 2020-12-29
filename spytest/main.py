@@ -9,6 +9,7 @@ from spytest.version import get_git_ver
 from spytest.framework import parse_batch_args
 from spytest.framework import parse_suite_files
 import spytest.env as env
+import spytest.cmdargs as cmdargs
 
 import utilities.common as utils
 
@@ -24,7 +25,7 @@ def _parse_args(pre_parse=False):
 
     # pytest hack to let it wotk with absolute paths for testbed and tclist
     parser = argparse.ArgumentParser(description='Process SpyTest arguments.',
-                                     add_help=False)
+                                     add_help=False, formatter_class=cmdargs.HelpFormatter)
     if pre_parse:
         parser.add_argument("--args-file", action="store", default=None,
                             help="spytest arguments from file path")
@@ -53,8 +54,9 @@ def _parse_args(pre_parse=False):
     for bucket in range(1,9):
         parser.add_argument("--bucket-{}".format(bucket), action="store", default=None, nargs="*",
                             help="needed topology for bucket-{}.".format(bucket))
-    parser.add_argument("--env", action="append", default=[],
-                        nargs=2, help="environment variables")
+    parser.add_argument("--env", action=cmdargs.validate_env(), default={}, nargs='+',
+                        metavar=("<name>=<value>"), help="environment variables")
+    parser.add_argument("--max-time", action="append", default=[], nargs='+')
     parser.add_argument("--exclude-devices", action="store", default=None,
                     help="exclude given duts from testbed")
     parser.add_argument("--include-devices", action="store", default=None,
@@ -129,7 +131,7 @@ def _parse_args(pre_parse=False):
     sys.argv = [sys.argv[0]]
     sys.argv.extend(unknown)
 
-    for name, value in args.env:
+    for name, value in args.env.items():
         print("setting environment {} = {}".format(name, value))
         os.environ[name] = value
 
@@ -171,6 +173,9 @@ def _parse_args(pre_parse=False):
     if args.file_mode:
         os.environ["SPYTEST_FILE_MODE"] = "1"
         sys.argv.append("--file-mode")
+
+    for name, value in args.max_time:
+        sys.argv.extend(["--max-time", name, value])
 
     addl_args = parse_batch_args(args.numprocesses, tclist_bucket, args.augment_modules_csv)
     sys.argv.extend(addl_args)

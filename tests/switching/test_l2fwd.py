@@ -163,6 +163,7 @@ def initialize_topology():
     total_links = data.access_port_count + data.trunk_port_count + \
                   (data.lagT_count * data.lagT_link_count) + (data.lagA_count * data.lagA_link_count)
     vars = st.ensure_min_topology("D1D2:{}".format(total_links), "D1T1:2", "D2T1:2")
+
     ### Seeing few TC failures with 4 node run.Keeping topology to be 2 node till fix is in.
     data.dut_list = st.get_dut_names()
     data.my_dut_list = [data.dut_list[0], data.dut_list[1]]
@@ -170,6 +171,8 @@ def initialize_topology():
         'HIGH')
     for dut in data.my_dut_list:
         data.platform_list.append(basic_obj.get_hwsku(dut))
+    if not st.is_feature_supported("sai-removes-vlan-1", data.dut_list[0]):
+        data.base_vlan = 2
 
     print_log(
         "Test Topology Description\n==============================\n\

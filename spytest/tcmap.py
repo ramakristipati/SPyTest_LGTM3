@@ -20,7 +20,7 @@ def get():
 def get_repeated():
     if not repeat_info:
         return {}
-    if env.get("SPYTEST_REPEAT_MODULE_SUPPORT", "0") == "0":
+    if env.get("SPYTEST_REPEAT_MODULE_SUPPORT") == "0":
         return {}
     return get().repeated
 
@@ -122,6 +122,14 @@ def _load_csv(csv_file, path):
         fd.close()
     return rows
 
+def _load_csvs(name, default):
+    csv_files = env.get(name, default)
+    rows = []
+    for csv_file in csv_files.split(","):
+        for row in _load_csv(csv_file, "reporting"):
+            rows.append(row)
+    return rows
+
 def load(do_verify=True, items=None):
     tcmap.tclist = OrderedDict()
     tcmap.comp = OrderedDict()
@@ -136,8 +144,7 @@ def load(do_verify=True, items=None):
     tcmap.non_mapped = []
 
     #Module,UIType,FasterCLI,TrySSH,MaxTime
-    info_csv = env.get("SPYTEST_MODULE_INFO_CSV_FILENAME", "module_info.csv")
-    for row in _load_csv(info_csv, "reporting"):
+    for row in _load_csvs("SPYTEST_MODULE_INFO_CSV_FILENAME", "module_info.csv"):
         if len(row) < 6: continue
         name, uitype, fcli, tryssh, random, maxtime = [str(i).strip() for i in row[:6]]
         if name.strip().startswith("#"): continue
@@ -151,16 +158,14 @@ def load(do_verify=True, items=None):
         ent.maxtime = utils.integer_parse(maxtime, 0)
 
     #Function,MaxTime
-    info_csv = env.get("SPYTEST_FUNCTION_INFO_CSV_FILENAME", "function_info.csv")
-    for row in _load_csv(info_csv, "reporting"):
+    for row in _load_csvs("SPYTEST_FUNCTION_INFO_CSV_FILENAME", "function_info.csv"):
         if len(row) < 2: continue
         name, maxtime = [str(i).strip() for i in row[:2]]
         if name.strip().startswith("#"): continue
         ent = tcmap.get_function_info(name)
         ent.maxtime = utils.integer_parse(maxtime, 0)
 
-    tcmap_csv = env.get("SPYTEST_TCMAP_CSV_FILENAME", "tcmap.csv")
-    for row in _load_csv(tcmap_csv, "reporting"):
+    for row in _load_csvs("SPYTEST_TCMAP_CSV_FILENAME", "tcmap.csv"):
         if len(row) == 4:
             #  TODO treat the data as module
             (age, cadence, comp, name0) = (row[0], row[1], row[2], row[3])

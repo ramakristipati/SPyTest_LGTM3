@@ -19,7 +19,7 @@ data.remote = None
 data.mask = "24"
 data.counters_threshold = 15
 data.tgen_stats_threshold = 20
-data.tgen_rate_pps = '1000'
+data.tgen_rate_pps = 1000
 data.tgen_l3_len = '500'
 data.traffic_run_time = 20
 data.clear_parallel = True
@@ -47,6 +47,8 @@ def get_handles():
 
 @pytest.fixture(scope="module", autouse=True)
 def sanity_l3_module_hooks(request):
+    if st.is_soft_tgen():
+        data.tgen_rate_pps = 100
     yield
 
 

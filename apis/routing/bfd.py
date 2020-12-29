@@ -552,7 +552,7 @@ def verify_bfd_peer(dut,**kwargs):
             parsed_output = st.show(dut, cmd, type=cli_type)
         except Exception as e:
             st.error("The BFD session is not exist either deleted or not configured: exception is {} ".format(e))
-            if ping_verify: debug_bfd_ping(dut, kwargs['peer'], vrf_name=vrf, cli_type=cli_type)
+            if ping_verify: debug_bfd_ping(dut, kwargs['peer'], vrf_name=vrf)
             return False
     elif cli_type in ['rest-patch', 'rest-put']:
         # st.show(dut, cmd, type='klish')
@@ -582,7 +582,7 @@ def verify_bfd_peer(dut,**kwargs):
 
     if len(parsed_output) == 0:
         st.error("OUTPUT is Empty")
-        if ping_verify: debug_bfd_ping(dut, kwargs['peer'], vrf_name=vrf, cli_type=cli_type)
+        if ping_verify: debug_bfd_ping(dut, kwargs['peer'], vrf_name=vrf)
         return False
     #Get the index of peer from list of parsed output
     for i in range(len(kwargs['peer'])):
@@ -599,11 +599,11 @@ def verify_bfd_peer(dut,**kwargs):
                     rv=True
                 else:
                     st.error('Match Not Found for %s :: Expected: %s  Actual : %s'%(k,kwargs[k][i],parsed_output[peer_index][k]))
-                    if ping_verify: debug_bfd_ping(dut, kwargs['peer'][i], vrf_name=vrf, enable_debug=False, cli_type=cli_type)
+                    if ping_verify: debug_bfd_ping(dut, kwargs['peer'][i], vrf_name=vrf, enable_debug=False)
                     return False
         else:
             st.error(" BFD Peer %s not in output"%kwargs['peer'][i])
-            if ping_verify: debug_bfd_ping(dut, kwargs['peer'], vrf_name=vrf, cli_type=cli_type)
+            if ping_verify: debug_bfd_ping(dut, kwargs['peer'], vrf_name=vrf)
             return False
     return rv
 
@@ -824,6 +824,7 @@ def get_bfd_peers_brief(dut, cli_type=''):
 
 def debug_bfd_ping(dut, addresses, vrf_name='default', enable_debug=True, cli_type=''):
     st.banner("********* Ping Dubug commands starts ************")
+    addresses = make_list(addresses)
     for addr in addresses:
         family = 'ipv4' if is_valid_ipv4(addr) else 'ipv6'
         if vrf_name in ['default', 'default-vrf']:

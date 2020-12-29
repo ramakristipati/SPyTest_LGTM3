@@ -129,6 +129,7 @@ show_ntp_server.tmpl, .*, sonic, show ntp server
 show_ntp_global.tmpl, .*, sonic, show ntp global
 show_ntp.tmpl, .*, sonic, show ntp.*
 show_ntpstat.tmpl, .*, sonic, ntpstat
+show_ntpstat.tmpl, .*, sonic, sudo ip vrf exec mgmt ntpstat
 show_ntpstat.tmpl, .*, sonic, sudo cgexec -g l3mdev:mgmt ntpstat
 show_clock.tmpl, .*, sonic, show clock
 show_timedatectl_status.tmpl, .*, sonic, timedatectl status
@@ -588,3 +589,6 @@ show_ldap_server.tmpl,.*,sonic,show ldap-server
 show_logging_servers.tmpl, .*, sonic, show logging servers
 show_kdump_status.tmpl, .*, sonic, show kdump status
 show_kdump_status.tmpl, .*, sonic, sudo show kdump status
+proc_bcm_knet_rx_drop.tmpl, .*, sonic, cat /proc/bcm/knet/rx_drop
+proc_bcm_knet_stats.tmpl, .*, sonic, cat /proc/bcm/knet/stats
+proc_bcm_knet_stats.tmpl, .*, sonic, cat /proc/bcm/knet/dstats

@@ -50,6 +50,8 @@ feature_names = [
     "sai-removes-vlan-1",
     "nat-default-enabled",
     "sflow-default-enabled",
+    "ip_vrf_exec_mgmt_ntpstat",
+    "remove_qos_profile"
 ]
 
 class Feature(object):

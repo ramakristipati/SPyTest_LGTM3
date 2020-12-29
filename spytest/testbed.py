@@ -912,6 +912,27 @@ class Testbed(object):
                     retval.append(name)
         return retval
 
+    def get_device_models(self, dtype=None):
+        retval = []
+        for dut in self.get_device_names(dtype):
+            model = self.get_device_param(dut, "model", 'UNKNOWN')
+            retval.append(model)
+        return retval
+
+    def get_device_chips(self, dtype=None):
+        retval = []
+        for dut in self.get_device_names(dtype):
+            chip = self.get_device_param(dut, "chip", 'UNKNOWN')
+            retval.append(chip)
+        return retval
+
+    def get_tgen_types(self):
+        retval = []
+        for dev in self.get_device_names("TG"):
+            tinfo = self.get_tg_info(dev)
+            retval.append(tinfo["type"])
+        return retval
+
     def get_rerved_links(self, dut):
         retval = []
         for _, linfo in self.reserved_links.items():
@@ -1058,10 +1079,12 @@ class Testbed(object):
         rv.tgen_list = self.get_device_names("TG")
         rv.tgen_ports = SpyTestDict()
         rv.dut_list = self.get_device_names("DUT")
+        rv.dut_ids = SpyTestDict()
         dut_index = 1
         for dut in rv.dut_list:
             dut_name = "D{}".format(dut_index)
             rv[dut_name] = dut
+            rv.dut_ids[dut] = dut_name
             dut_index = dut_index + 1
         tg_index = 1
         tg_types = dict()
@@ -1223,6 +1246,9 @@ class Testbed(object):
             elif re.compile(r"^D\d+NAME[:=]\S+$").match(arg):
                 res = re.search(r"^D(\d+)NAME[:=](\S+)$", arg)
                 properties.setdefault("D{}".format(res.group(1)), dict())["NAME"] = res.group(2)
+            elif re.compile(r"^D\d+UI[:=]\S+$").match(arg):
+                res = re.search(r"^D(\d+)UI[:=](\S+)$", arg)
+                properties.setdefault("D{}".format(res.group(1)), dict())["UI"] = res.group(2)
             elif re.compile(r"^BUILD[:=]\S+$").match(arg):
                 res = re.search(r"^BUILD[:=](\S+)$", arg)
                 properties.setdefault(None, dict())["BUILD"] = res.group(1)
@@ -1247,6 +1273,9 @@ class Testbed(object):
             elif re.compile(r"^NAME[:=]\S+$").match(arg):
                 res = re.search(r"^NAME[:=](\S+)$", arg)
                 properties.setdefault(None, dict())["NAME"] = res.group(1)
+            elif re.compile(r"^UI[:=]\S+$").match(arg):
+                res = re.search(r"^UI[:=](\S+)$", arg)
+                properties.setdefault(None, dict())["UI"] = res.group(1)
             elif re.compile(r"^NAMES[:=]\S+$").match(arg):
                 res = re.search(r"^NAMES[:=](\S+)$", arg)
                 properties.setdefault(None, dict())["NAMES"] = res.group(1)
@@ -1272,7 +1301,6 @@ class Testbed(object):
     def ensure_tgen_model_and_card(logger, tb, properties, errs):
 
         l_errs = errs or []
-
         # check tg model requirements
         if "TG" not in tb.ignore_constraints:
             for tg in tb.get_device_names("TG"):

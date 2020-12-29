@@ -116,7 +116,7 @@ install_python366()
       popd
     popd
     rm -rf ActivePython-3.6.6.3606-linux-x86_64-glibc-2.12-*
-    export SPYTEST_PYTHON_VERSION=3.6.6
+    export SCID_PYTHON_BIN=$SCID/tools/ActivPython/3.6.6/bin
     $dir/upgrade_requirements.sh
   popd
 }
@@ -134,7 +134,7 @@ install_python371()
       popd
     popd
     rm -rf ActivePython-3.7.1.0000-linux-x86_64-glibc-2.12-*
-    export SPYTEST_PYTHON_VERSION=3.7.1
+    export SCID_PYTHON_BIN=$SCID/tools/ActivPython/3.7.1/bin
     $dir/upgrade_requirements.sh
   popd
 }

@@ -297,8 +297,8 @@ class ScapyPort(object):
         arp_send_req = kws.get('arp_send_req', None)
         count = self.utils.intval(kws, "count", 1)
         if mode == "config":
-            if count > 100:
-                self.error("too large > 100", "count", count)
+            if count > 128:
+                self.error("too large > 128", "count", count)
             index = len(self.interfaces)
             handle = self.interface_encode(index)
             interface = ScapyInterface(self, index, handle, *args, **kws)

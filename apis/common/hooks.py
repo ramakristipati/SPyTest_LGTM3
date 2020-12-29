@@ -176,8 +176,8 @@ class Hooks(object):
         st.config(dut, "systemctl --no-pager list-unit-files", skip_error_check=True)
         st.config(dut, "ls -l /var/run/docker*", skip_error_check=True)
 
-    def dut_reboot(self, dut, method='normal',cli_type=''):
-        return reboot.dut_reboot(dut, method, cli_type)
+    def dut_reboot(self, dut, **kwargs):
+        return reboot.dut_reboot(dut, **kwargs)
 
     def get_onie_grub_config(self, dut, mode):
         from apis.system.boot_up import get_onie_grub_config
